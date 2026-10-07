@@ -8,7 +8,7 @@ It reads public seat counts from Ole Miss's Banner class search (the same data a
 
 - [x] Banner client: terms, subjects, sections with seat counts
 - [x] SQLite snapshots + detection of full → open seats
-- [ ] Subscriptions + email alerts
+- [x] Subscriptions + email alerts (waitlist order, CLI-managed)
 - [ ] Website (search, subscribe, waitlist position)
 - [ ] Hosting / scheduled polling
 
@@ -40,6 +40,47 @@ The first run only records the current counts. Later runs print a line like the 
 ```
 
 Data goes into `snatch.db` (SQLite). There are two tables: `sections` holds the latest counts and `openings` holds the history of seat openings.
+
+## Email alerts
+
+### 1. Set up sending (Gmail)
+
+1. Turn on 2-Step Verification for the Gmail account at https://myaccount.google.com/security.
+2. Create an App Password at https://myaccount.google.com/apppasswords. Name it `olemiss-snatch` and copy the 16-character password.
+3. Copy the example settings file and fill it in:
+   ```bash
+   cp .env.example .env
+   open -e .env
+   ```
+4. Send yourself a test email:
+   ```bash
+   python -m olemiss_snatch.poll --test-email you@go.olemiss.edu
+   ```
+
+Without a `.env` file, alerts are printed in the terminal instead of being emailed.
+
+### 2. Subscribe to sections
+
+Run the poller once for the term first, so the CRNs are in the database. Then:
+
+```bash
+python -m olemiss_snatch.subscribe add you@go.olemiss.edu 10343 --term 202710
+python -m olemiss_snatch.subscribe list
+python -m olemiss_snatch.subscribe remove you@go.olemiss.edu 10343 --term 202710
+```
+
+When a watched section goes from full to open, the poller emails subscribers in the order they subscribed. It sends to 3 people per open seat, so 1 seat means the first 3 in line get the email. The same opening never emails anyone twice.
+
+### 3. Test an alert without waiting for registration
+
+Pretend a section you're subscribed to is full, then poll its subject again:
+
+```bash
+sqlite3 snatch.db "UPDATE sections SET seats_available = 0 WHERE crn = '10343'"
+python -m olemiss_snatch.poll --term 202710 --subjects MATH
+```
+
+If the real section has open seats, this looks like an opening and you'll get the email.
 
 ## Notes on the data
 

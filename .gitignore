@@ -4,3 +4,4 @@ venv/
 .venv/
 *.db
 .pytest_cache/
+.env
