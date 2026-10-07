@@ -1,6 +1,6 @@
 # olemiss-snatch
 
-Get notified when a seat opens in a full Ole Miss class. Inspired by Princeton's [TigerSnatch](https://github.com/TigerSnatch/TigerSnatch).
+Get notified when a seat opens in a full Ole Miss class. 
 
 It reads public seat counts from Ole Miss's Banner class search (the same data as "Browse Classes"). It never logs in as a student and never registers anyone. It only watches and alerts.
 
