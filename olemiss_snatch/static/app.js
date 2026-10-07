@@ -171,4 +171,44 @@
       .catch(function (err) { box.checked = !want; toast(err.message, "error"); })
       .finally(function () { box.disabled = false; });
   });
+
+  // ---------- phone ----------
+  function savePhone(value) {
+    postJSON("/api/phone", { phone: value })
+      .then(function (res) {
+        toast(res.phone ? "Saved. You'll get texts at " + res.phone + "." : "Phone number removed.");
+        setTimeout(function () { window.location.reload(); }, 900);
+      })
+      .catch(function (err) { toast(err.message, "error"); });
+  }
+  var phoneSave = document.getElementById("phone-save");
+  if (phoneSave) phoneSave.addEventListener("click", function () {
+    savePhone(document.getElementById("phone-input").value);
+  });
+  var phoneRemove = document.getElementById("phone-remove");
+  if (phoneRemove) phoneRemove.addEventListener("click", function () { savePhone(""); });
+
+  // ---------- admin ----------
+  var blockBtn = document.getElementById("block-btn");
+  if (blockBtn) blockBtn.addEventListener("click", function () {
+    var email = document.getElementById("block-email").value.trim();
+    if (!email || !window.confirm("Block " + email + "? This removes their subscriptions and trades.")) return;
+    postJSON("/api/admin/block", { email: email, block: true, reason: document.getElementById("block-reason").value })
+      .then(function () { window.location.reload(); })
+      .catch(function (err) { toast(err.message, "error"); });
+  });
+  document.addEventListener("click", function (event) {
+    var un = event.target.closest && event.target.closest(".admin-unblock");
+    if (un) {
+      postJSON("/api/admin/block", { email: un.dataset.email, block: false })
+        .then(function () { window.location.reload(); })
+        .catch(function (err) { toast(err.message, "error"); });
+    }
+    var clear = event.target.closest && event.target.closest(".admin-clear");
+    if (clear && window.confirm("Remove every subscription to CRN " + clear.dataset.crn + "?")) {
+      postJSON("/api/admin/clear-section", { term: clear.dataset.term, crn: clear.dataset.crn })
+        .then(function (res) { toast("Removed " + res.removed + " subscriptions."); setTimeout(function () { window.location.reload(); }, 900); })
+        .catch(function (err) { toast(err.message, "error"); });
+    }
+  });
 })();

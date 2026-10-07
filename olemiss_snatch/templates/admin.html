@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Admin · {{ SITE_NAME }}{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width: 1100px">
+  <h1 class="h3 fw-bold mb-1">Admin</h1>
+  <p class="small text-muted mb-4">
+    {{ alert_status.rstrip(".") }} · Limit: {{ max_subs }} sections per student per term ·
+    Text alerts: {{ "on" if sms_enabled else "off (Twilio not configured)" }}
+  </p>
+
+  <div class="row g-3 mb-4">
+    {% for label, value in [("Students", stats.users), ("Watching something", stats.subscribers),
+                            ("Subscriptions", stats.subscriptions), ("Sections watched", stats.sections_watched),
+                            ("Openings detected", stats.openings), ("Alerts sent", stats.alerts_sent),
+                            ("Open to trades", stats.traders), ("Trade matches", stats.trade_matches),
+                            ("Phones on file", stats.phones)] %}
+      <div class="col-6 col-md-4 col-lg">
+        <div class="card snatch-card h-100"><div class="card-body py-2">
+          <div class="stat-value">{{ "{:,}".format(value) }}</div>
+          <div class="small text-muted">{{ label }}</div>
+        </div></div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card snatch-card"><div class="card-body">
+        <h2 class="h6 fw-bold mb-3">Most-watched sections</h2>
+        <table class="table table-sm align-middle snatch-table mb-0">
+          <thead><tr><th>Section</th><th>CRN</th><th>Seats</th><th class="text-end">Watching</th><th></th></tr></thead>
+          <tbody>
+            {% for s in stats.top_sections %}
+              <tr>
+                <td>{{ s.subject }} {{ s.course_number }}-{{ s.section }}</td>
+                <td>{{ s.crn }}</td>
+                <td>{{ s.seats_available }}/{{ s.max_enrollment }}</td>
+                <td class="text-end fw-semibold">{{ s.watchers }}</td>
+                <td class="text-end"><button class="btn btn-sm btn-outline-danger admin-clear"
+                    data-term="{{ s.term }}" data-crn="{{ s.crn }}">Clear</button></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="small text-muted">No subscriptions yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card snatch-card mb-3"><div class="card-body">
+        <h2 class="h6 fw-bold mb-2">Block a student</h2>
+        <p class="small text-muted">Blocking signs them out, removes their subscriptions and trades, and stops future sign-ins.</p>
+        <form id="block-form" class="d-flex flex-column gap-2" onsubmit="return false">
+          <input class="form-control form-control-sm" id="block-email" type="email" placeholder="someone@go.olemiss.edu" required>
+          <input class="form-control form-control-sm" id="block-reason" placeholder="Reason (optional)">
+          <button class="btn btn-sm btn-snatch align-self-start" id="block-btn">Block</button>
+        </form>
+      </div></div>
+      <div class="card snatch-card"><div class="card-body">
+        <h2 class="h6 fw-bold mb-2">Blocked</h2>
+        {% for b in blocked %}
+          <div class="d-flex justify-content-between align-items-center small mb-2">
+            <span>{{ b.email }}{% if b.reason %} <span class="text-muted">· {{ b.reason }}</span>{% endif %}</span>
+            <button class="btn btn-sm btn-outline-secondary admin-unblock" data-email="{{ b.email }}">Unblock</button>
+          </div>
+        {% else %}
+          <p class="small text-muted mb-0">Nobody is blocked.</p>
+        {% endfor %}
+      </div></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -32,6 +32,39 @@ def load_env(path: str = ".env"):
 
 
 RESEND_URL = "https://api.resend.com/emails"
+TWILIO_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+
+
+def normalize_us_phone(raw: str) -> str:
+    """'(662) 555-0123' -> '+16625550123'. Raises ValueError for anything else."""
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]
+    if len(digits) != 10 or digits[0] in "01":
+        raise ValueError("Enter a 10-digit US phone number.")
+    return "+1" + digits
+
+
+class Texter:
+    """Sends SMS through Twilio's API when TWILIO_SID/TWILIO_TOKEN/TWILIO_FROM are set."""
+
+    def __init__(self):
+        self.sid = os.environ.get("TWILIO_SID")
+        self.token = os.environ.get("TWILIO_TOKEN")
+        self.sender = os.environ.get("TWILIO_FROM")
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.sid and self.token and self.sender)
+
+    def send(self, to: str, body: str):
+        if not self.configured:
+            print(f"--- (dry run, SMS not configured) text to {to}: {body}")
+            return
+        r = requests.post(TWILIO_URL.format(sid=self.sid), auth=(self.sid, self.token),
+                          data={"From": self.sender, "To": to, "Body": body}, timeout=30)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Twilio error {r.status_code}: {r.text[:200]}")
 
 
 class Mailer:
@@ -96,7 +129,15 @@ def opening_email(opening: db.Opening, email: str) -> tuple[str, str]:
     return subject, body
 
 
-def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening) -> list[str]:
+def opening_text(opening: db.Opening) -> str:
+    s = opening.section
+    seats = "1 seat" if s.seats_available == 1 else f"{s.seats_available} seats"
+    return (f"RebelSnatch: {s.label} has {seats} open. CRN {s.crn}. "
+            f"Register now in Experience. Reply STOP to opt out.")
+
+
+def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening,
+                   texter: "Texter | None" = None) -> list[str]:
     """Email the next batch of subscribers in waitlist order. Returns who was emailed."""
     s = opening.section
     if s.wait_count > 0:
@@ -116,4 +157,10 @@ def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening
             continue
         db.record_notification(conn, sub["id"], opening.opening_id)
         sent.append(sub["email"])
+        user = db.get_user(conn, sub["email"])
+        if texter is not None and user is not None and user["phone"]:
+            try:
+                texter.send(user["phone"], opening_text(opening))
+            except Exception as e:  # the email already went out
+                print(f"  ! text to {sub['email']} failed: {e}")
     return sent

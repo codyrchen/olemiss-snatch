@@ -92,6 +92,19 @@ CREATE TABLE IF NOT EXISTS trade_matches (
     PRIMARY KEY (term, email_a, crn_a, email_b, crn_b)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    email      TEXT PRIMARY KEY,
+    phone      TEXT,
+    created_at TEXT NOT NULL,
+    last_login TEXT
+);
+
+CREATE TABLE IF NOT EXISTS blocklist (
+    email      TEXT PRIMARY KEY,
+    reason     TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS sections_course ON sections (term, subject, course_number);
 CREATE INDEX IF NOT EXISTS subscriptions_section ON subscriptions (term, crn);
 """
@@ -135,6 +148,12 @@ def _setup(conn: sqlite3.Connection, path: str):
                 if name not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.executescript(SCHEMA)
+    # Students who signed in before the users table existed.
+    conn.execute(
+        "INSERT OR IGNORE INTO users (email, created_at, last_login)"
+        " SELECT email, MIN(created_at), MAX(created_at) FROM login_tokens WHERE used = 1 GROUP BY email"
+    )
+    conn.commit()
 
 
 def connect(path: str = "snatch.db") -> sqlite3.Connection:
@@ -472,3 +491,90 @@ def record_trade_match(conn: sqlite3.Connection, term: str, email_1: str, crn_1:
             (term, ea, ca, eb, cb, _now()),
         )
     return cur.rowcount == 1
+
+
+# ---------- Users, blocklist, limits ----------
+
+def touch_user(conn: sqlite3.Connection, email: str):
+    """Create the user on first sign-in and record the latest sign-in time."""
+    now = _now()
+    with conn:
+        conn.execute(
+            "INSERT INTO users (email, created_at, last_login) VALUES (?, ?, ?)"
+            " ON CONFLICT (email) DO UPDATE SET last_login = excluded.last_login",
+            (email.lower(), now, now),
+        )
+
+
+def get_user(conn: sqlite3.Connection, email: str):
+    return conn.execute("SELECT * FROM users WHERE email = ?", (email.lower(),)).fetchone()
+
+
+def set_phone(conn: sqlite3.Connection, email: str, phone: str | None):
+    touch_user(conn, email)
+    with conn:
+        conn.execute("UPDATE users SET phone = ? WHERE email = ?", (phone, email.lower()))
+
+
+def count_subscriptions(conn: sqlite3.Connection, email: str, term: str) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) FROM subscriptions WHERE email = ? AND term = ?", (email.lower(), term)
+    ).fetchone()[0]
+
+
+def is_blocked(conn: sqlite3.Connection, email: str) -> bool:
+    return conn.execute("SELECT 1 FROM blocklist WHERE email = ?", (email.lower(),)).fetchone() is not None
+
+
+def block_user(conn: sqlite3.Connection, email: str, reason: str = ""):
+    """Block a user and remove everything they've signed up for."""
+    email = email.lower()
+    with conn:
+        conn.execute("INSERT OR REPLACE INTO blocklist (email, reason, created_at) VALUES (?, ?, ?)",
+                     (email, reason, _now()))
+        for table in ("subscriptions", "enrollments", "trade_wants"):
+            conn.execute(f"DELETE FROM {table} WHERE email = ?", (email,))
+
+
+def unblock_user(conn: sqlite3.Connection, email: str):
+    with conn:
+        conn.execute("DELETE FROM blocklist WHERE email = ?", (email.lower(),))
+
+
+def blocked_users(conn: sqlite3.Connection):
+    return conn.execute("SELECT * FROM blocklist ORDER BY created_at DESC").fetchall()
+
+
+def clear_section_subscriptions(conn: sqlite3.Connection, term: str, crn: str) -> int:
+    with conn:
+        return conn.execute("DELETE FROM subscriptions WHERE term = ? AND crn = ?", (term, crn)).rowcount
+
+
+# ---------- Stats ----------
+
+def stats(conn: sqlite3.Connection, top_n: int = 10) -> dict:
+    one = lambda sql, *p: conn.execute(sql, p).fetchone()[0]
+    return {
+        "users": one("SELECT COUNT(*) FROM users"),
+        "subscribers": one("SELECT COUNT(DISTINCT email) FROM subscriptions"),
+        "subscriptions": one("SELECT COUNT(*) FROM subscriptions"),
+        "sections_watched": one("SELECT COUNT(DISTINCT term || crn) FROM subscriptions"),
+        "alerts_sent": one("SELECT COUNT(*) FROM notifications"),
+        "openings": one("SELECT COUNT(*) FROM openings"),
+        "traders": one("SELECT COUNT(DISTINCT email) FROM enrollments WHERE open_to_trade = 1"),
+        "trade_matches": one("SELECT COUNT(*) FROM trade_matches"),
+        "phones": one("SELECT COUNT(*) FROM users WHERE phone IS NOT NULL AND phone != ''"),
+        "top_sections": conn.execute(
+            "SELECT sub.term, sub.crn, COUNT(*) AS watchers, sec.subject, sec.course_number,"
+            " sec.section, sec.title, sec.seats_available, sec.max_enrollment"
+            " FROM subscriptions sub JOIN sections sec USING (term, crn)"
+            " GROUP BY sub.term, sub.crn ORDER BY watchers DESC, sec.subject LIMIT ?",
+            (top_n,),
+        ).fetchall(),
+        "recent_openings": conn.execute(
+            "SELECT o.*, sec.subject, sec.course_number, sec.section, sec.title"
+            " FROM openings o JOIN sections sec USING (term, crn)"
+            " ORDER BY o.id DESC LIMIT ?",
+            (top_n,),
+        ).fetchall(),
+    }

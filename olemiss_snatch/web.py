@@ -17,12 +17,21 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from . import db
 from .banner import has_active_waitlist
 from .links import base_url, read_unsubscribe_token, secret_key
-from .notify import REGISTRATION_URL, Mailer, load_env
+from . import schedule
+from .notify import REGISTRATION_URL, Mailer, Texter, load_env, normalize_us_phone
 from .trades import SWAP_STEPS, refresh_matches
 
 SITE_NAME = "RebelSnatch"
 LOGIN_LINK_MINUTES = 15
 LOGIN_REQUESTS_PER_HOUR = 5
+
+
+def max_subscriptions() -> int:
+    return int(os.environ.get("MAX_SUBSCRIPTIONS", "15"))
+
+
+def admin_emails() -> set[str]:
+    return {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 
 
 def allowed_domains() -> list[str]:
@@ -78,6 +87,7 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         DB_PATH=db_path or os.environ.get("SNATCH_DB", "snatch.db"),
     )
     app.extensions["mailer"] = mailer or Mailer()
+    app.extensions["texter"] = Texter()
     app.jinja_env.globals.update(SITE_NAME=SITE_NAME, term_name=term_name,
                                  REGISTRATION_URL=REGISTRATION_URL,
                                  has_active_waitlist=has_active_waitlist)
@@ -105,6 +115,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     def login_required(view):
         @wraps(view)
         def wrapper(*args, **kwargs):
+            if "email" in session and db.is_blocked(get_db(), session["email"]):
+                session.clear()
             if "email" not in session:
                 if request.path.startswith("/api/"):
                     return jsonify(error="Please sign in again."), 401
@@ -123,7 +135,16 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
 
     @app.context_processor
     def inject_user():
-        return {"user_email": session.get("email")}
+        email = session.get("email")
+        return {"user_email": email, "is_admin": bool(email) and email in admin_emails()}
+
+    def admin_required(view):
+        @wraps(view)
+        def wrapper(*args, **kwargs):
+            if session.get("email") not in admin_emails():
+                abort(404)
+            return view(*args, **kwargs)
+        return wrapper
 
     # ---------- sign in ----------
 
@@ -142,6 +163,10 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
                   "danger")
             return redirect(url_for("index"))
         conn = get_db()
+        if db.is_blocked(conn, email):
+            flash("This account has been suspended. Contact the site owner if you think that's a mistake.",
+                  "danger")
+            return redirect(url_for("index"))
         now = datetime.now(timezone.utc)
         if db.recent_login_requests(conn, email, _iso(now - timedelta(hours=1))) >= LOGIN_REQUESTS_PER_HOUR:
             flash("Too many sign-in links requested. Try again in an hour.", "danger")
@@ -172,13 +197,17 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     def auth(token):
         if request.method == "GET":
             return render_template("confirm_login.html", token=token)
-        email = db.use_login_token(get_db(), _hash(token))
+        conn = get_db()
+        email = db.use_login_token(conn, _hash(token))
+        if email is not None and db.is_blocked(conn, email):
+            email = None
         if email is None:
             flash("That sign-in link expired or was already used. Request a new one.", "danger")
             return redirect(url_for("index"))
         session.clear()
         session.permanent = True
         session["email"] = email
+        db.touch_user(conn, email)
         return redirect(url_for("dashboard"))
 
     @app.post("/logout")
@@ -194,7 +223,12 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         conn = get_db()
         term = current_term()
         subs = db.list_subscriptions(conn, session["email"])
+        user = db.get_user(conn, session["email"])
         return render_template("dashboard.html", term=term, terms=db.terms(conn), subs=subs,
+                               phone=(user["phone"] if user else None),
+                               sms_enabled=app.extensions["texter"].configured,
+                               max_subs=max_subscriptions(),
+                               alert_status=schedule.describe(schedule.status()),
                                matches=db.find_trade_matches(conn, session["email"]),
                                swap_steps=SWAP_STEPS,
                                multi_term=len({s["term"] for s in subs}) > 1,
@@ -222,6 +256,58 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     def healthz():
         get_db().execute("SELECT 1")
         return "ok"
+
+    @app.get("/stats")
+    def stats_page():
+        return render_template("stats.html", stats=db.stats(get_db()),
+                               alert_status=schedule.describe(schedule.status()))
+
+    @app.get("/admin")
+    @login_required
+    @admin_required
+    def admin():
+        conn = get_db()
+        return render_template("admin.html", stats=db.stats(conn, top_n=25),
+                               blocked=db.blocked_users(conn),
+                               alert_status=schedule.describe(schedule.status()),
+                               max_subs=max_subscriptions(),
+                               sms_enabled=app.extensions["texter"].configured)
+
+    @app.post("/api/admin/block")
+    @login_required
+    @admin_required
+    @json_post
+    def api_admin_block():
+        body = request.get_json()
+        email = str(body.get("email", "")).strip().lower()
+        if "@" not in email:
+            return jsonify(error="Enter an email address."), 400
+        if body.get("block", True):
+            db.block_user(get_db(), email, str(body.get("reason", ""))[:200])
+        else:
+            db.unblock_user(get_db(), email)
+        return jsonify(ok=True)
+
+    @app.post("/api/admin/clear-section")
+    @login_required
+    @admin_required
+    @json_post
+    def api_admin_clear_section():
+        body = request.get_json()
+        n = db.clear_section_subscriptions(get_db(), str(body.get("term")), str(body.get("crn")))
+        return jsonify(ok=True, removed=n)
+
+    @app.post("/api/phone")
+    @login_required
+    @json_post
+    def api_phone():
+        raw = str(request.get_json().get("phone") or "").strip()
+        try:
+            phone = normalize_us_phone(raw) if raw else None
+        except ValueError as e:
+            return jsonify(error=str(e)), 400
+        db.set_phone(get_db(), session["email"], phone)
+        return jsonify(ok=True, phone=phone)
 
     @app.get("/about")
     def about():
@@ -274,6 +360,11 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
             if has_active_waitlist(sec["wait_capacity"], sec["wait_available"], sec["wait_count"]):
                 return jsonify(error="This section has an official waitlist. Join it in Experience "
                                      "so the seat is held for you."), 400
+            already = conn.execute("SELECT 1 FROM subscriptions WHERE email = ? AND term = ? AND crn = ?",
+                                   (email, term, crn)).fetchone()
+            if not already and db.count_subscriptions(conn, email, term) >= max_subscriptions():
+                return jsonify(error=f"You can watch up to {max_subscriptions()} sections per term. "
+                                     "Turn one off to add another."), 400
             db.add_subscription(conn, email, term, crn)
         else:
             db.remove_subscription(conn, email, term, crn)

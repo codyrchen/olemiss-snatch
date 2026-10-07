@@ -17,7 +17,8 @@ import time
 
 from . import db
 from .banner import BannerClient
-from .notify import Mailer, load_env, notify_opening
+from . import schedule
+from .notify import Mailer, Texter, load_env, notify_opening
 
 
 def _progress(msg: str):
@@ -31,7 +32,8 @@ def _clear_progress():
         print(f"\r{'':<60}\r", end="", flush=True)
 
 
-def poll_once(client: BannerClient, conn, term: str, subjects: list[str], mailer: Mailer) -> int:
+def poll_once(client: BannerClient, conn, term: str, subjects: list[str], mailer: Mailer,
+              texter: Texter | None = None) -> int:
     total_sections = total_openings = 0
     for i, subject in enumerate(subjects, 1):
         try:
@@ -49,7 +51,7 @@ def poll_once(client: BannerClient, conn, term: str, subjects: list[str], mailer
             _clear_progress()
             print(f"  OPENED  {s.crn}  {s.label}  {s.title}  "
                   f"({o.seats_before} -> {s.seats_available} of {s.max_enrollment})")
-            emailed = notify_opening(conn, mailer, o)
+            emailed = notify_opening(conn, mailer, o, texter)
             if emailed:
                 print(f"          emailed {len(emailed)}: {', '.join(emailed)}")
     _clear_progress()
@@ -77,6 +79,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     mailer = Mailer()
+    texter = Texter()
 
     if args.test_email:
         mailer.send(args.test_email, "olemiss-snatch test email",
@@ -101,7 +104,18 @@ def main(argv=None):
     subjects: dict[str, list[str]] = {}
     subjects_fetched = 0.0
 
+    paused_note = None
     while True:
+        if args.every:
+            st = schedule.status()
+            if not st.active:
+                note = schedule.describe(st)
+                if note != paused_note:  # say it once, not every minute
+                    print(time.strftime("[%Y-%m-%d %H:%M:%S]"), note, flush=True)
+                    paused_note = note
+                time.sleep(min(args.every, 300))
+                continue
+            paused_note = None
         stale = time.time() - subjects_fetched > SUBJECT_REFRESH_SECONDS
         if not args.subjects and (stale or any(t not in subjects for t in args.term)):
             for term in args.term:
@@ -117,7 +131,7 @@ def main(argv=None):
                 continue
             print(time.strftime("[%Y-%m-%d %H:%M:%S]"), f"polling term {term}", flush=True)
             try:
-                poll_once(client, conn, term, term_subjects, mailer)
+                poll_once(client, conn, term, term_subjects, mailer, texter)
             except Exception as e:  # keep the loop alive if Banner or the network hiccups
                 print(f"  ! poll of {term} failed: {e}", file=sys.stderr)
         if not args.every:

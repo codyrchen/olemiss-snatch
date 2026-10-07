@@ -154,6 +154,21 @@ Buy one at [Cloudflare Registrar](https://dash.cloudflare.com) (sold at cost, an
 - The match also appears on both dashboards.
 - Emails are shown only to matched students, and only while both are "Open to trades".
 
+## Limits, schedule, stats, admin and texts
+
+All of these are set as Railway **Variables**:
+
+| Variable | What it does | Example |
+|---|---|---|
+| `MAX_SUBSCRIPTIONS` | Max sections one student can watch per term (default 15) | `15` |
+| `POLL_WINDOWS` | Only check seats in these windows, Central time, `;`-separated. Unset = always | `2026-11-02 07:00 to 2026-11-20 23:59; 2027-01-12 06:00 to 2027-01-26 23:59` |
+| `ADMIN_EMAILS` | Who can open `/admin` (stats, block students, clear a section) | `you@go.olemiss.edu` |
+| `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM` | Turn on text alerts. Students add a phone number on the dashboard | from twilio.com |
+
+- `/stats` is public and shows only totals and counts, never anyone's email.
+- `/admin` shows everything and lets you block a student. Blocking signs them out, removes their subscriptions and trades, and stops future sign-ins.
+- **Twilio note:** texting US numbers needs a verified toll-free number or A2P 10DLC registration in Twilio. Approval can take a few days, so start early.
+
 ## Notes on the data
 
 - Term codes look like `YYYYTT`: `10` is Fall, `20` is Winter, `30` is Spring and `50` is Summer. For example, `202730` is Spring 2027.

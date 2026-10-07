@@ -20,14 +20,19 @@
         {% if user_email %}
           <a class="nav-link" href="{{ url_for('dashboard') }}" title="Dashboard">
             <i class="bi bi-grid d-sm-none"></i><span class="d-none d-sm-inline">Dashboard</span></a>
+          <a class="nav-link" href="{{ url_for('stats_page') }}" title="Stats">
+            <i class="bi bi-bar-chart d-sm-none"></i><span class="d-none d-sm-inline">Stats</span></a>
           <a class="nav-link" href="{{ url_for('about') }}" title="About">
             <i class="bi bi-info-circle d-sm-none"></i><span class="d-none d-sm-inline">About</span></a>
+          {% if is_admin %}<a class="nav-link" href="{{ url_for('admin') }}" title="Admin">
+            <i class="bi bi-shield-lock d-sm-none"></i><span class="d-none d-sm-inline">Admin</span></a>{% endif %}
           <span class="navbar-text small d-none d-md-inline ms-2 me-2 user-chip">{{ user_email }}</span>
           <form method="post" action="{{ url_for('logout') }}" class="m-0 ms-1">
             <button class="btn btn-sm btn-outline-light" title="Log out">
               <i class="bi bi-box-arrow-right d-sm-none"></i><span class="d-none d-sm-inline">Log out</span></button>
           </form>
         {% else %}
+          <a class="nav-link" href="{{ url_for('stats_page') }}">Stats</a>
           <a class="nav-link" href="{{ url_for('about') }}">About</a>
         {% endif %}
       </div>

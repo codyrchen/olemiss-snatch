@@ -100,6 +100,9 @@ body > footer { margin-top: auto; }
 .waitlist-link { color: var(--blue); }
 .waitlist-link:hover { color: var(--navy); }
 
+.stat-value { font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; }
+.alert-status { color: #5b6477; }
+
 /* trades */
 .my-section td { background: #f4f7fc; }
 .you-badge { background: var(--navy); color: #fff; font-weight: 600; }

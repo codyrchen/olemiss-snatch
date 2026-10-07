@@ -9,6 +9,8 @@
         <span class="small text-muted">{{ term_name(term) }} · seats updated {{ updated }}</span>
       {% endif %}
     </div>
+    <div class="alert-status small mb-3"><i class="bi bi-clock me-1"></i>{{ alert_status.rstrip(".") }}
+      {% if subs %}· Watching {{ subs|length }} (limit {{ max_subs }} per term){% endif %}</div>
 
     {% if not term %}
       <p class="text-muted mb-0">No course data yet. The poller hasn't run.</p>
@@ -71,6 +73,22 @@
     {% endif %}
   </div>
 </div>
+
+{% if sms_enabled %}
+<div class="card snatch-card mt-3">
+  <div class="card-body">
+    <h2 class="h5 fw-bold mb-1"><i class="bi bi-phone me-1"></i> Text alerts</h2>
+    <p class="small text-muted">Seats go fast. Add your number to get a text along with the email.
+      Standard message rates apply; reply STOP to any text to opt out.</p>
+    <form class="d-flex flex-wrap gap-2" id="phone-form" onsubmit="return false">
+      <input class="form-control form-control-sm w-auto" id="phone-input" type="tel" inputmode="tel"
+             placeholder="(662) 555-0123" value="{{ phone or '' }}" aria-label="Phone number">
+      <button class="btn btn-sm btn-snatch" id="phone-save">Save</button>
+      {% if phone %}<button class="btn btn-sm btn-outline-secondary" id="phone-remove">Remove</button>{% endif %}
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <div class="card snatch-card mt-3">
   <div class="card-body">
