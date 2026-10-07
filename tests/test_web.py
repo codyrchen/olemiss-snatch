@@ -169,3 +169,15 @@ def test_unsubscribe_link(client, app):
     assert b"Unsubscribed" in client.post(path).data
     assert db.subscribers_for(conn, "202710", "10001") == []
     assert client.get("/unsubscribe/forged-token").status_code == 404
+
+
+def test_login_email_failure_shows_message(app, client, caplog):
+    def broken_send(to, subject, body):
+        raise RuntimeError("Resend error 403: domain not verified")
+    app.extensions["mailer"].send = broken_send
+
+    r = client.post("/login", data={"email": "cody@go.olemiss.edu"})
+    assert r.status_code == 302
+    page = client.get(r.headers["Location"]).data.decode()
+    assert "couldn&#39;t send the sign-in email" in page or "couldn't send the sign-in email" in page
+    assert "Resend error 403" in caplog.text

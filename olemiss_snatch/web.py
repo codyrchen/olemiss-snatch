@@ -147,12 +147,18 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         db.save_login_token(conn, _hash(token), email,
                             _iso(now + timedelta(minutes=LOGIN_LINK_MINUTES)))
         link = f"{base_url()}{url_for('auth', token=token)}"
-        app.extensions["mailer"].send(
-            email, f"Your {SITE_NAME} sign-in link",
-            f"Click to sign in to {SITE_NAME}:\n\n{link}\n\n"
-            f"This link works once and expires in {LOGIN_LINK_MINUTES} minutes. "
-            f"If you didn't ask for it, ignore this email.\n",
-        )
+        try:
+            app.extensions["mailer"].send(
+                email, f"Your {SITE_NAME} sign-in link",
+                f"Click to sign in to {SITE_NAME}:\n\n{link}\n\n"
+                f"This link works once and expires in {LOGIN_LINK_MINUTES} minutes. "
+                f"If you didn't ask for it, ignore this email.\n",
+            )
+        except Exception as e:
+            app.logger.error("sign-in email to %s failed: %s", email, e)
+            flash("We couldn't send the sign-in email right now. Please try again in a minute.",
+                  "danger")
+            return redirect(url_for("index"))
         return render_template("check_email.html", email=email)
 
     # GET only shows a button; the POST signs in. Email security scanners
