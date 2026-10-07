@@ -181,3 +181,17 @@ def test_login_email_failure_shows_message(app, client, caplog):
     page = client.get(r.headers["Location"]).data.decode()
     assert "couldn&#39;t send the sign-in email" in page or "couldn't send the sign-in email" in page
     assert "Resend error 403" in caplog.text
+
+
+def test_failed_sends_dont_count_toward_rate_limit(app, client):
+    real_send = app.extensions["mailer"].send
+
+    def broken_send(to, subject, body):
+        raise RuntimeError("Resend error 400: API key is invalid")
+    app.extensions["mailer"].send = broken_send
+    for _ in range(6):
+        client.post("/login", data={"email": "cody@go.olemiss.edu"})
+
+    app.extensions["mailer"].send = real_send
+    r = client.post("/login", data={"email": "cody@go.olemiss.edu"})
+    assert b"Check your email" in r.data

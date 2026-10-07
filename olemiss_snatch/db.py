@@ -298,6 +298,11 @@ def save_login_token(conn: sqlite3.Connection, token_hash: str, email: str, expi
         )
 
 
+def delete_login_token(conn: sqlite3.Connection, token_hash: str):
+    with conn:
+        conn.execute("DELETE FROM login_tokens WHERE token_hash = ?", (token_hash,))
+
+
 def recent_login_requests(conn: sqlite3.Connection, email: str, since: str) -> int:
     return conn.execute(
         "SELECT COUNT(*) FROM login_tokens WHERE email = ? AND created_at >= ?",

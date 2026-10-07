@@ -156,6 +156,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
             )
         except Exception as e:
             app.logger.error("sign-in email to %s failed: %s", email, e)
+            # Not the user's fault, so it shouldn't count toward the hourly limit.
+            db.delete_login_token(conn, _hash(token))
             flash("We couldn't send the sign-in email right now. Please try again in a minute.",
                   "danger")
             return redirect(url_for("index"))
