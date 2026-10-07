@@ -1,0 +1,70 @@
+{% extends "_app_layout.html" %}
+{% block title %}Dashboard · {{ SITE_NAME }}{% endblock %}
+{% block main %}
+<div class="card snatch-card">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+      <h2 class="h4 fw-bold mb-0">My Subscriptions</h2>
+      {% if term %}
+        <span class="small text-muted">{{ term_name(term) }} · seats updated {{ updated }}</span>
+      {% endif %}
+    </div>
+
+    {% if not term %}
+      <p class="text-muted mb-0">No course data yet. The poller hasn't run.</p>
+    {% elif not subs %}
+      <div class="empty-state text-center py-5">
+        <div class="step-icon mx-auto mb-3"><i class="bi bi-bell"></i></div>
+        <p class="fw-semibold mb-1">You're not watching any sections yet.</p>
+        <p class="text-muted small mb-0">Search for a course on the left, then flip the switch on a full section.</p>
+      </div>
+    {% else %}
+      <div class="table-responsive">
+        <table class="table align-middle snatch-table mb-0">
+          <thead>
+            <tr>
+              <th>Course</th><th class="d-none d-sm-table-cell">Section</th><th class="d-none d-md-table-cell">Time</th>
+              <th>Seats</th><th>Spot</th><th class="text-end"><span class="d-none d-sm-inline">Subscribed</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in subs %}
+            <tr data-row-crn="{{ s.crn }}">
+              <td>
+                <a class="fw-semibold course-link"
+                   href="{{ url_for('course', term=s.term, subject=s.subject, course_number=s.course_number) }}">
+                  {{ s.subject }} {{ s.course_number }}<span class="d-sm-none">-{{ s.section }}</span></a>
+                <div class="small text-muted text-truncate" style="max-width: 16rem">{{ s.title }}</div>
+                {% if multi_term %}<span class="badge rounded-pill term-badge">{{ term_name(s.term) }}</span>{% endif %}
+              </td>
+              <td class="d-none d-sm-table-cell">{{ s.section }}<div class="small text-muted">CRN {{ s.crn }}</div></td>
+              <td class="small text-muted d-none d-md-table-cell">{{ s.meetings or "TBA" }}</td>
+              <td>
+                {% if s.max_enrollment and s.seats_available > 0 %}
+                  <span class="seat-pill open">{{ s.seats_available }} / {{ s.max_enrollment }}</span>
+                {% else %}
+                  <span class="seat-pill full">{{ [s.seats_available, 0]|max }} / {{ s.max_enrollment }}</span>
+                {% endif %}
+              </td>
+              <td><span class="position-badge">#{{ s.position }}</span>
+                  <span class="small text-muted d-none d-sm-inline">of {{ s.watchers }}</span></td>
+              <td class="text-end">
+                <div class="form-check form-switch d-inline-block m-0">
+                  <input class="form-check-input snatch-switch" type="checkbox" role="switch" checked
+                         data-term="{{ s.term }}" data-crn="{{ s.crn }}" data-remove-row="1"
+                         aria-label="Subscribed to CRN {{ s.crn }}">
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted mt-3 mb-0">
+        When a section opens, the first few people in line get an email with the CRN.
+        Register in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a> right away.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

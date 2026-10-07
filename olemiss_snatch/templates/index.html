@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block body_class %}landing{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="container py-5">
+    <div class="row align-items-center g-5 py-lg-4">
+      <div class="col-lg-6">
+        <h1 class="display-4 fw-bold mb-3">Snatch a seat in that full class.</h1>
+        <p class="lead mb-4">
+          Subscribe to full sections and {{ SITE_NAME }} emails you the moment a spot opens up.
+          Alerts go out in the order people subscribed, so the earlier you get in line, the better your chances.
+        </p>
+        <form method="post" action="{{ url_for('login') }}" class="login-form">
+          <label for="email" class="form-label fw-semibold">Sign in with your Ole Miss email</label>
+          <div class="input-group input-group-lg">
+            <input type="email" class="form-control" id="email" name="email" required
+                   placeholder="you@{{ domains[0] }}">
+            <button class="btn btn-snatch px-4">Send link</button>
+          </div>
+          <div class="form-text text-white-50 mt-2">No password. We email you a one-time sign-in link.</div>
+        </form>
+      </div>
+      <div class="col-lg-6">
+        <div class="card snatch-card preview-card shadow-lg">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <div class="fw-bold">MATH 1150</div>
+                <div class="small text-muted">Elementary Statistics</div>
+              </div>
+              <span class="badge rounded-pill text-bg-light">Fall 2026</span>
+            </div>
+            <table class="table table-sm align-middle mb-0">
+              <tbody>
+                <tr><td>007</td><td class="small text-muted">MWF 9:00-9:50am</td>
+                    <td><span class="seat-pill full">0 / 49</span></td>
+                    <td class="text-end"><div class="form-check form-switch m-0 d-inline-block"><input class="form-check-input" type="checkbox" checked disabled></div></td></tr>
+                <tr><td>011</td><td class="small text-muted">TR 11:00am-12:15pm</td>
+                    <td><span class="seat-pill full">0 / 48</span></td>
+                    <td class="text-end"><div class="form-check form-switch m-0 d-inline-block"><input class="form-check-input" type="checkbox" disabled></div></td></tr>
+                <tr><td>013</td><td class="small text-muted">TR 2:00-3:15pm</td>
+                    <td><span class="seat-pill open">2 / 42</span></td>
+                    <td class="text-end small text-success fw-semibold">Open</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="container py-5">
+  <div class="row g-4 text-center">
+    <div class="col-md-4">
+      <div class="step-icon"><i class="bi bi-search"></i></div>
+      <h5 class="fw-bold mt-3">Find your class</h5>
+      <p class="text-muted">Search any course this term and see live seat counts for every section.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="step-icon"><i class="bi bi-toggle-on"></i></div>
+      <h5 class="fw-bold mt-3">Flip the switch</h5>
+      <p class="text-muted">Subscribe to full sections. You'll see your place in line on your dashboard.</p>
+    </div>
+    <div class="col-md-4">
+      <div class="step-icon"><i class="bi bi-envelope-paper"></i></div>
+      <h5 class="fw-bold mt-3">Get the email, grab the seat</h5>
+      <p class="text-muted">When a seat opens, we email you the CRN. Register in Experience before someone else does.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

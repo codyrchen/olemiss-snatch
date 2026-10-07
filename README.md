@@ -9,7 +9,7 @@ It reads public seat counts from Ole Miss's Banner class search (the same data a
 - [x] Banner client: terms, subjects, sections with seat counts
 - [x] SQLite snapshots + detection of full → open seats
 - [x] Subscriptions + email alerts (waitlist order, CLI-managed)
-- [ ] Website (search, subscribe, waitlist position)
+- [x] Website: email sign-in, course search, subscribe switches, waitlist position
 - [ ] Hosting / scheduled polling
 
 ## Setup
@@ -81,6 +81,28 @@ python -m olemiss_snatch.poll --term 202710 --subjects MATH
 ```
 
 If the real section has open seats, this looks like an opening and you'll get the email.
+
+## Website
+
+A TigerSnatch-style site where students:
+- sign in with an Ole Miss email using a one-time link (no passwords)
+- search courses by code, title or instructor
+- flip a switch on a full section to get in line
+- see their place in line on the dashboard
+
+Every alert email includes a one-click unsubscribe link.
+
+### Run it locally
+
+```bash
+pip install -r requirements.txt
+python -c "import secrets; print(secrets.token_hex(32))"   # paste into .env as SECRET_KEY
+flask --app olemiss_snatch.web run --debug
+```
+
+Open http://localhost:5000. Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.
+
+Without SMTP settings, the sign-in link is printed in the Terminal running Flask instead of being emailed.
 
 ## Notes on the data
 

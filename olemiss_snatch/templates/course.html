@@ -1,0 +1,66 @@
+{% extends "_app_layout.html" %}
+{% block title %}{{ course.subject }} {{ course.course_number }} · {{ SITE_NAME }}{% endblock %}
+{% block main %}
+<div class="card snatch-card">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+      <div>
+        <h2 class="h3 fw-bold mb-0">{{ course.subject }} {{ course.course_number }}</h2>
+        <div class="text-muted">{{ course.title }}</div>
+      </div>
+      <span class="badge rounded-pill term-badge">{{ term_name(term) }}</span>
+    </div>
+    <div class="small text-muted mb-3">Seats updated {{ updated }}</div>
+
+    <div class="table-responsive">
+      <table class="table align-middle snatch-table mb-0">
+        <thead>
+          <tr>
+            <th>Section</th><th class="d-none d-sm-table-cell">CRN</th><th>Time</th>
+            <th class="d-none d-md-table-cell">Instructor</th>
+            <th>Seats</th><th class="text-center d-none d-sm-table-cell">Watching</th>
+            <th class="text-end"><span class="d-none d-sm-inline">Subscribe</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sections %}
+          {% set closed = s.max_enrollment <= 0 %}
+          {% set full = not closed and s.seats_available <= 0 %}
+          <tr class="{% if closed %}text-muted{% endif %}">
+            <td class="fw-semibold">{{ s.section }}
+              <div class="small text-muted fw-normal d-sm-none">{{ s.crn }}</div></td>
+            <td class="d-none d-sm-table-cell">{{ s.crn }}</td>
+            <td class="small">{{ s.meetings or "TBA" }}</td>
+            <td class="small d-none d-md-table-cell">{{ s.instructor or "Staff" }}</td>
+            <td>
+              {% if closed %}<span class="seat-pill closed">Closed</span>
+              {% elif full %}<span class="seat-pill full">0 / {{ s.max_enrollment }}</span>
+              {% else %}<span class="seat-pill open">{{ s.seats_available }} / {{ s.max_enrollment }}</span>{% endif %}
+            </td>
+            <td class="text-center d-none d-sm-table-cell"><span class="watchers" data-watchers-crn="{{ s.crn }}">{{ s.watchers }}</span></td>
+            <td class="text-end">
+              {% if full or s.subscribed %}
+                <div class="form-check form-switch d-inline-block m-0">
+                  <input class="form-check-input snatch-switch" type="checkbox" role="switch"
+                         data-term="{{ term }}" data-crn="{{ s.crn }}"
+                         {% if s.subscribed %}checked{% endif %}
+                         aria-label="Subscribe to section {{ s.section }}">
+                </div>
+              {% elif closed %}
+                <span class="small">-</span>
+              {% else %}
+                <a class="small fw-semibold text-success text-decoration-none" href="{{ REGISTRATION_URL }}"
+                   target="_blank" rel="noopener"><span class="d-none d-sm-inline">Open: </span>register <i class="bi bi-box-arrow-up-right"></i></a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-muted mt-3 mb-0">
+      You can subscribe to sections with no open seats. If a section has seats, register for it directly.
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}About · {{ SITE_NAME }}{% endblock %}
+{% block body %}
+<div class="container py-5" style="max-width: 760px">
+  <div class="card snatch-card">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h3 fw-bold mb-4">About {{ SITE_NAME }}</h1>
+
+      <h2 class="h6 fw-bold">How it works</h2>
+      <p>Every few minutes, {{ SITE_NAME }} checks the seat counts in Ole Miss's public class search.
+        When a section you subscribed to goes from full to open, we email you its CRN.</p>
+
+      <h2 class="h6 fw-bold">Who gets notified?</h2>
+      <p>Subscribers are lined up in the order they subscribed. When seats open, the first few people in line
+        get an email (three per open seat). Your dashboard shows your place in line.</p>
+
+      <h2 class="h6 fw-bold">Does it register me?</h2>
+      <p>No. {{ SITE_NAME }} never logs in to Experience or Banner and never asks for your password.
+        You register yourself in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a>.</p>
+
+      <h2 class="h6 fw-bold">What do you store?</h2>
+      <p class="mb-4">Your Ole Miss email and the sections you're watching. That's it.</p>
+
+      <p class="small text-muted mb-0">Inspired by Princeton's TigerSnatch. Not affiliated with the University of Mississippi.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

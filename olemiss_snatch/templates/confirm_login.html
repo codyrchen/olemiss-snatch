@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="container py-5" style="max-width: 560px">
+  <div class="card snatch-card text-center">
+    <div class="card-body p-5">
+      <h2 class="h4 fw-bold mb-3">Sign in to {{ SITE_NAME }}</h2>
+      <form method="post" action="{{ url_for('auth', token=token) }}">
+        <button class="btn btn-snatch btn-lg px-5">Continue</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

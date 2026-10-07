@@ -22,6 +22,8 @@ class Section:
     seats_available: int
     max_enrollment: int
     wait_available: int
+    instructor: str = ""
+    meetings: str = ""   # e.g. "MWF 9:00-9:50am" ; "TR 11:00am-12:15pm"
 
     @property
     def is_full(self) -> bool:
@@ -37,6 +39,40 @@ class Section:
         return f"{self.subject} {self.course_number}-{self.section}"
 
 
+DAYS = [("monday", "M"), ("tuesday", "T"), ("wednesday", "W"), ("thursday", "R"),
+        ("friday", "F"), ("saturday", "S"), ("sunday", "U")]
+
+
+def _clock(hhmm: str) -> tuple[str, str]:
+    h, m = int(hhmm[:2]), hhmm[2:]
+    return f"{(h - 1) % 12 + 1}:{m}", "am" if h < 12 else "pm"
+
+
+def format_meeting(mt: dict) -> str:
+    days = "".join(code for key, code in DAYS if mt.get(key))
+    begin, end = mt.get("beginTime"), mt.get("endTime")
+    if not begin or not end:
+        return days or "TBA"
+    (b, b_ampm), (e, e_ampm) = _clock(begin), _clock(end)
+    times = f"{b}-{e}{e_ampm}" if b_ampm == e_ampm else f"{b}{b_ampm}-{e}{e_ampm}"
+    return f"{days} {times}".strip()
+
+
+def _instructor(raw: dict) -> str:
+    faculty = raw.get("faculty") or []
+    primary = [f for f in faculty if f.get("primaryIndicator")] or faculty
+    return html.unescape(primary[0].get("displayName") or "") if primary else ""
+
+
+def _meetings(raw: dict) -> str:
+    parts = []
+    for mf in raw.get("meetingsFaculty") or []:
+        text = format_meeting(mf.get("meetingTime") or {})
+        if text not in parts:
+            parts.append(text)
+    return "; ".join(parts)
+
+
 def parse_section(raw: dict) -> Section:
     return Section(
         term=str(raw["term"]),
@@ -48,6 +84,8 @@ def parse_section(raw: dict) -> Section:
         seats_available=int(raw.get("seatsAvailable") or 0),
         max_enrollment=int(raw.get("maximumEnrollment") or 0),
         wait_available=int(raw.get("waitAvailable") or 0),
+        instructor=_instructor(raw),
+        meetings=_meetings(raw),
     )
 
 

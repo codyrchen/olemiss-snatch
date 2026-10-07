@@ -6,6 +6,7 @@ import sqlite3
 from email.message import EmailMessage
 
 from . import db
+from .links import base_url, unsubscribe_url
 
 REGISTRATION_URL = "https://experience.elluciancloud.com/umsaasproduction"
 
@@ -58,7 +59,7 @@ class Mailer:
             smtp.send_message(msg)
 
 
-def opening_email(opening: db.Opening) -> tuple[str, str]:
+def opening_email(opening: db.Opening, email: str) -> tuple[str, str]:
     s = opening.section
     seats = "1 seat" if s.seats_available == 1 else f"{s.seats_available} seats"
     subject = f"Seat open: {s.label} {s.title} (CRN {s.crn})"
@@ -70,8 +71,8 @@ def opening_email(opening: db.Opening) -> tuple[str, str]:
         f"Register now: {REGISTRATION_URL}\n"
         f"Student > Registration > Register for Classes, then add CRN {s.crn}.\n\n"
         f"Seats go fast; other students may have been notified too.\n\n"
-        f"To stop these alerts:\n"
-        f"python -m olemiss_snatch.subscribe remove <your email> {s.crn} --term {s.term}\n"
+        f"Stop alerts for this section: {unsubscribe_url(email, s.term, s.crn)}\n"
+        f"Manage your subscriptions: {base_url()}/dashboard\n"
     )
     return subject, body
 
@@ -80,11 +81,11 @@ def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening
     """Email the next batch of subscribers in waitlist order. Returns who was emailed."""
     s = opening.section
     batch = max(s.seats_available, 1) * BATCH_MULTIPLIER
-    subject, body = opening_email(opening)
     sent = []
     for sub in db.subscribers_for(conn, s.term, s.crn)[:batch]:
         if db.was_notified(conn, sub["id"], opening.opening_id):
             continue
+        subject, body = opening_email(opening, sub["email"])
         try:
             mailer.send(sub["email"], subject, body)
         except Exception as e:  # one bad address shouldn't stop the rest

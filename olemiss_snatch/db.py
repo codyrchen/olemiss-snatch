@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS sections (
     max_enrollment  INTEGER NOT NULL,
     wait_available  INTEGER NOT NULL,
     updated_at      TEXT NOT NULL,
+    instructor      TEXT NOT NULL DEFAULT '',
+    meetings        TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (term, crn)
 );
 
@@ -46,7 +48,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     sent_at         TEXT NOT NULL,
     UNIQUE (subscription_id, opening_id)
 );
+
+CREATE TABLE IF NOT EXISTS login_tokens (
+    token_hash TEXT PRIMARY KEY,
+    email      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS sections_course ON sections (term, subject, course_number);
+CREATE INDEX IF NOT EXISTS subscriptions_section ON subscriptions (term, crn);
 """
+
+# Columns added after the first release; connect() adds them to older databases.
+MIGRATIONS = {
+    "sections": {
+        "instructor": "TEXT NOT NULL DEFAULT ''",
+        "meetings": "TEXT NOT NULL DEFAULT ''",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -61,8 +82,14 @@ def _now() -> str:
 
 
 def connect(path: str = "snatch.db") -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    for table, columns in MIGRATIONS.items():
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if existing:
+            for name, decl in columns.items():
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.executescript(SCHEMA)
     return conn
 
@@ -90,15 +117,19 @@ def save_snapshot(conn: sqlite3.Connection, sections: list[Section]) -> list[Ope
                 )
                 openings.append(Opening(s, prev["seats_available"], cur.lastrowid))
             conn.execute(
-                "INSERT INTO sections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO sections (term, crn, subject, course_number, section, title,"
+                " seats_available, max_enrollment, wait_available, updated_at, instructor, meetings)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 " ON CONFLICT (term, crn) DO UPDATE SET"
                 " subject = excluded.subject, course_number = excluded.course_number,"
                 " section = excluded.section, title = excluded.title,"
                 " seats_available = excluded.seats_available,"
                 " max_enrollment = excluded.max_enrollment,"
-                " wait_available = excluded.wait_available, updated_at = excluded.updated_at",
+                " wait_available = excluded.wait_available, updated_at = excluded.updated_at,"
+                " instructor = excluded.instructor, meetings = excluded.meetings",
                 (s.term, s.crn, s.subject, s.course_number, s.section, s.title,
-                 s.seats_available, s.max_enrollment, s.wait_available, now),
+                 s.seats_available, s.max_enrollment, s.wait_available, now,
+                 s.instructor, s.meetings),
             )
     return openings
 
@@ -131,7 +162,11 @@ def remove_subscription(conn: sqlite3.Connection, email: str, term: str, crn: st
 def list_subscriptions(conn: sqlite3.Connection, email: str | None = None):
     sql = (
         "SELECT sub.*, sec.subject, sec.course_number, sec.section, sec.title,"
-        " sec.seats_available, sec.max_enrollment"
+        " sec.seats_available, sec.max_enrollment, sec.instructor, sec.meetings,"
+        " (SELECT COUNT(*) FROM subscriptions s2"
+        "  WHERE s2.term = sub.term AND s2.crn = sub.crn AND s2.id <= sub.id) AS position,"
+        " (SELECT COUNT(*) FROM subscriptions s3"
+        "  WHERE s3.term = sub.term AND s3.crn = sub.crn) AS watchers"
         " FROM subscriptions sub LEFT JOIN sections sec USING (term, crn)"
     )
     if email:
@@ -159,3 +194,92 @@ def record_notification(conn: sqlite3.Connection, subscription_id: int, opening_
             "INSERT OR IGNORE INTO notifications (subscription_id, opening_id, sent_at) VALUES (?, ?, ?)",
             (subscription_id, opening_id, _now()),
         )
+
+
+def terms(conn: sqlite3.Connection) -> list[str]:
+    return [r[0] for r in conn.execute("SELECT DISTINCT term FROM sections ORDER BY term DESC")]
+
+
+def busiest_term(conn: sqlite3.Connection) -> str | None:
+    """The term with the most sections, a sensible default for the term picker."""
+    row = conn.execute(
+        "SELECT term FROM sections GROUP BY term ORDER BY COUNT(*) DESC, term DESC LIMIT 1"
+    ).fetchone()
+    return row[0] if row else None
+
+
+def search_courses(conn: sqlite3.Connection, term: str, query: str, limit: int = 50):
+    """Courses matching a code ("MATH 1150", "math1150"), title words, or instructor."""
+    q = " ".join(query.split())
+    if not q:
+        return []
+    compact = q.replace(" ", "").upper()
+    like = f"%{q}%"
+    return conn.execute(
+        "SELECT subject, course_number, MIN(title) AS title,"
+        " COUNT(*) AS sections,"
+        " SUM(max_enrollment > 0 AND seats_available <= 0) AS full_sections"
+        " FROM sections WHERE term = ? AND ("
+        "   (subject || course_number) LIKE ? OR course_number LIKE ?"
+        "   OR title LIKE ? OR instructor LIKE ?"
+        " )"
+        " GROUP BY subject, course_number"
+        " ORDER BY (subject || course_number) LIKE ? DESC, subject, course_number"
+        " LIMIT ?",
+        (term, f"{compact}%", f"{compact}%", like, like, f"{compact}%", limit),
+    ).fetchall()
+
+
+def course_sections(conn: sqlite3.Connection, term: str, subject: str, course_number: str,
+                    email: str | None = None):
+    """Sections of one course with watcher counts and whether `email` is subscribed."""
+    return conn.execute(
+        "SELECT sec.*,"
+        " (SELECT COUNT(*) FROM subscriptions s WHERE s.term = sec.term AND s.crn = sec.crn) AS watchers,"
+        " EXISTS (SELECT 1 FROM subscriptions s WHERE s.term = sec.term AND s.crn = sec.crn"
+        "         AND s.email = ?) AS subscribed"
+        " FROM sections sec WHERE term = ? AND subject = ? AND course_number = ?"
+        " ORDER BY section",
+        ((email or "").lower(), term, subject, course_number),
+    ).fetchall()
+
+
+def subscription_position(conn: sqlite3.Connection, email: str, term: str, crn: str) -> int | None:
+    row = conn.execute(
+        "SELECT (SELECT COUNT(*) FROM subscriptions s2"
+        "        WHERE s2.term = s.term AND s2.crn = s.crn AND s2.id <= s.id)"
+        " FROM subscriptions s WHERE email = ? AND term = ? AND crn = ?",
+        (email.lower(), term, crn),
+    ).fetchone()
+    return row[0] if row else None
+
+
+def last_updated(conn: sqlite3.Connection, term: str) -> str | None:
+    return conn.execute("SELECT MAX(updated_at) FROM sections WHERE term = ?", (term,)).fetchone()[0]
+
+
+def save_login_token(conn: sqlite3.Connection, token_hash: str, email: str, expires_at: str):
+    with conn:
+        conn.execute(
+            "INSERT INTO login_tokens (token_hash, email, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (token_hash, email.lower(), _now(), expires_at),
+        )
+
+
+def recent_login_requests(conn: sqlite3.Connection, email: str, since: str) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) FROM login_tokens WHERE email = ? AND created_at >= ?",
+        (email.lower(), since),
+    ).fetchone()[0]
+
+
+def use_login_token(conn: sqlite3.Connection, token_hash: str) -> str | None:
+    """Consume a one-time login token; returns the email if it was valid."""
+    with conn:
+        row = conn.execute(
+            "SELECT email, expires_at, used FROM login_tokens WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+        if row is None or row["used"] or row["expires_at"] < _now():
+            return None
+        conn.execute("UPDATE login_tokens SET used = 1 WHERE token_hash = ?", (token_hash,))
+        return row["email"]

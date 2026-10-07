@@ -1,0 +1,108 @@
+:root {
+  --navy: #14213d;
+  --navy-2: #1f3260;
+  --red: #ce1126;
+  --red-dark: #a50e1f;
+  --blue: #006ba6;
+  --bg: #f3f5f9;
+  --card-border: #e3e7ef;
+  --open: #198754;
+  --open-bg: #e6f4ec;
+  --full: #ce1126;
+  --full-bg: #fde8ea;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: #1d2433;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+body > footer { margin-top: auto; }
+
+/* nav */
+.snatch-nav { background: var(--navy); border-bottom: 4px solid var(--red); }
+.snatch-nav .nav-link { color: rgba(255, 255, 255, .85); font-weight: 500; }
+.snatch-nav .nav-link:hover { color: #fff; }
+.brand-mark {
+  display: inline-grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--red); color: #fff; font-size: 1.05rem;
+}
+.user-chip { color: rgba(255, 255, 255, .7) !important; }
+
+/* buttons */
+.btn-snatch { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+.btn-snatch:hover, .btn-snatch:focus { background: var(--red-dark); border-color: var(--red-dark); color: #fff; }
+
+/* cards */
+.snatch-card { border: 1px solid var(--card-border); border-radius: 14px; box-shadow: 0 1px 2px rgba(20, 33, 61, .04); }
+
+/* landing */
+.landing .hero {
+  background: radial-gradient(1200px 500px at 85% -10%, var(--navy-2), var(--navy) 60%);
+  color: #fff;
+}
+.landing .hero .lead { color: rgba(255, 255, 255, .8); }
+.login-form .form-control { border: 0; }
+.preview-card { color: #1d2433; transform: rotate(1.2deg); }
+.step-icon {
+  display: inline-grid; place-items: center;
+  width: 56px; height: 56px; border-radius: 14px;
+  background: var(--full-bg); color: var(--red); font-size: 1.5rem;
+}
+
+/* search panel */
+@media (min-width: 992px) {
+  .search-card { position: sticky; top: 1rem; }
+  .search-results { max-height: calc(100vh - 13rem); overflow-y: auto; }
+}
+.search-results .list-group-item {
+  border: 0; border-radius: 10px; padding: .6rem .75rem; margin-bottom: 2px;
+}
+.search-results .list-group-item:hover { background: #eef2f9; }
+.search-results .list-group-item.active { background: var(--navy); color: #fff; }
+.search-results .list-group-item.active .text-muted { color: rgba(255, 255, 255, .7) !important; }
+.result-code { font-weight: 700; }
+.full-count { font-size: .75rem; color: var(--full); font-weight: 600; }
+.list-group-item.active .full-count { color: #ffb3bb; }
+
+/* tables */
+.snatch-table thead th {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+  color: #6b7488; font-weight: 600; border-bottom-width: 1px;
+}
+.course-link { color: var(--navy); text-decoration: none; }
+.course-link:hover { color: var(--red); }
+.term-badge { background: #e8edf7; color: var(--navy); font-weight: 600; }
+
+.seat-pill {
+  display: inline-block; padding: .2rem .55rem; border-radius: 999px;
+  font-size: .8rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.seat-pill.open { background: var(--open-bg); color: var(--open); }
+.seat-pill.full { background: var(--full-bg); color: var(--full); }
+.seat-pill.closed { background: #eceef2; color: #7a8293; }
+
+.position-badge {
+  display: inline-block; min-width: 2.2rem; text-align: center;
+  padding: .15rem .5rem; border-radius: 8px;
+  background: var(--navy); color: #fff; font-weight: 700; font-size: .85rem;
+}
+
+/* switches in Ole Miss red */
+.form-switch .form-check-input { width: 2.6em; height: 1.4em; cursor: pointer; }
+.form-check-input:checked { background-color: var(--red); border-color: var(--red); }
+.form-check-input:focus { box-shadow: 0 0 0 .2rem rgba(206, 17, 38, .2); border-color: var(--red); }
+
+.toast.toast-success { background: var(--navy); color: #fff; }
+.toast.toast-error { background: var(--red); color: #fff; }
+.toast .btn-close { filter: invert(1); }
+
+@media (max-width: 575.98px) {
+  .snatch-nav .navbar-brand { font-size: 1.05rem; }
+  .snatch-table td, .snatch-table th { padding-left: .35rem; padding-right: .35rem; }
+  .snatch-table td.small { font-size: .78rem; }
+}
