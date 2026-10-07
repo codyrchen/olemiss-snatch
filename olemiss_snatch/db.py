@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS trade_matches (
 CREATE TABLE IF NOT EXISTS users (
     email      TEXT PRIMARY KEY,
     phone      TEXT,
+    alert_email TEXT,
     created_at TEXT NOT NULL,
     last_login TEXT
 );
@@ -116,6 +117,9 @@ MIGRATIONS = {
         "meetings": "TEXT NOT NULL DEFAULT ''",
         "wait_capacity": "INTEGER NOT NULL DEFAULT 0",
         "wait_count": "INTEGER NOT NULL DEFAULT 0",
+    },
+    "users": {
+        "alert_email": "TEXT",
     },
 }
 
@@ -514,6 +518,19 @@ def set_phone(conn: sqlite3.Connection, email: str, phone: str | None):
     touch_user(conn, email)
     with conn:
         conn.execute("UPDATE users SET phone = ? WHERE email = ?", (phone, email.lower()))
+
+
+def set_alert_email(conn: sqlite3.Connection, email: str, alert_email: str | None):
+    touch_user(conn, email)
+    with conn:
+        conn.execute("UPDATE users SET alert_email = ? WHERE email = ?",
+                     (alert_email.lower() if alert_email else None, email.lower()))
+
+
+def alert_address(conn: sqlite3.Connection, email: str) -> str:
+    """Where to send someone's alerts: their confirmed personal address, else their school email."""
+    row = conn.execute("SELECT alert_email FROM users WHERE email = ?", (email.lower(),)).fetchone()
+    return row["alert_email"] if row and row["alert_email"] else email.lower()
 
 
 def count_subscriptions(conn: sqlite3.Connection, email: str, term: str) -> int:

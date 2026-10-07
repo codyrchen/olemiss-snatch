@@ -14,9 +14,10 @@ from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, r
                    session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import db
+from . import db, google_auth
 from .banner import has_active_waitlist
-from .links import base_url, read_unsubscribe_token, secret_key
+from .links import (base_url, make_alert_email_token, read_alert_email_token,
+                    read_unsubscribe_token, secret_key)
 from . import schedule
 from .notify import REGISTRATION_URL, Mailer, Texter, load_env, normalize_us_phone
 from .trades import SWAP_STEPS, refresh_matches
@@ -152,7 +153,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     def index():
         if "email" in session:
             return redirect(url_for("dashboard"))
-        return render_template("index.html", domains=allowed_domains())
+        return render_template("index.html", domains=allowed_domains(),
+                               google_enabled=google_auth.configured())
 
     @app.post("/login")
     def login():
@@ -204,6 +206,45 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         if email is None:
             flash("That sign-in link expired or was already used. Request a new one.", "danger")
             return redirect(url_for("index"))
+        return finish_sign_in(email)
+
+    @app.get("/login/google")
+    def login_google():
+        if not google_auth.configured():
+            abort(404)
+        redirect_uri = base_url() + url_for("google_callback")
+        url, state, nonce = google_auth.authorization_url(redirect_uri, allowed_domains()[0])
+        session["google_state"], session["google_nonce"] = state, nonce
+        return redirect(url)
+
+    @app.get("/auth/google/callback")
+    def google_callback():
+        state, nonce = session.pop("google_state", None), session.pop("google_nonce", None)
+        if request.args.get("error"):
+            flash("Google sign-in was cancelled.", "danger")
+            return redirect(url_for("index"))
+        if not state or request.args.get("state") != state or not request.args.get("code"):
+            flash("That sign-in attempt expired. Please try again.", "danger")
+            return redirect(url_for("index"))
+        try:
+            email = google_auth.verified_email(request.args["code"],
+                                               base_url() + url_for("google_callback"),
+                                               nonce, allowed_domains())
+        except google_auth.GoogleAuthError as e:
+            flash(str(e), "danger")
+            return redirect(url_for("index"))
+        except Exception as e:  # network trouble talking to Google
+            app.logger.error("google sign-in failed: %s", e)
+            flash("Google sign-in didn't go through. Please try again.", "danger")
+            return redirect(url_for("index"))
+        return finish_sign_in(email)
+
+    def finish_sign_in(email):
+        conn = get_db()
+        if db.is_blocked(conn, email):
+            flash("This account has been suspended. Contact the site owner if you think that's a mistake.",
+                  "danger")
+            return redirect(url_for("index"))
         session.clear()
         session.permanent = True
         session["email"] = email
@@ -226,6 +267,7 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         user = db.get_user(conn, session["email"])
         return render_template("dashboard.html", term=term, terms=db.terms(conn), subs=subs,
                                phone=(user["phone"] if user else None),
+                               alert_email=(user["alert_email"] if user else None),
                                sms_enabled=app.extensions["texter"].configured,
                                max_subs=max_subscriptions(),
                                alert_status=schedule.describe(schedule.status()),
@@ -296,6 +338,48 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         body = request.get_json()
         n = db.clear_section_subscriptions(get_db(), str(body.get("term")), str(body.get("crn")))
         return jsonify(ok=True, removed=n)
+
+    @app.post("/api/alert-email")
+    @login_required
+    @json_post
+    def api_alert_email():
+        """Send alerts to a personal address. It must be confirmed from that inbox first."""
+        email = session["email"]
+        addr = str(request.get_json().get("email") or "").strip().lower()
+        if not addr:
+            db.set_alert_email(get_db(), email, None)
+            return jsonify(ok=True, alert_email=None)
+        if "@" not in addr or "." not in addr.rpartition("@")[2] or len(addr) > 200:
+            return jsonify(error="Enter a valid email address."), 400
+        if addr == email:
+            db.set_alert_email(get_db(), email, None)
+            return jsonify(ok=True, alert_email=None)
+        link = base_url() + url_for("confirm_alert_email", token=make_alert_email_token(email, addr))
+        try:
+            app.extensions["mailer"].send(
+                addr, f"Confirm where {SITE_NAME} sends your alerts",
+                f"{email} asked {SITE_NAME} to send seat and trade alerts to this address.\n\n"
+                f"Confirm here (the link works for 24 hours):\n{link}\n\n"
+                f"If that wasn't you, ignore this email and nothing will change.\n",
+            )
+        except Exception as e:
+            app.logger.error("alert-email confirmation to %s failed: %s", addr, e)
+            return jsonify(error="We couldn't send the confirmation email. Try again in a minute."), 502
+        return jsonify(ok=True, pending=addr)
+
+    @app.route("/confirm-alert-email/<token>", methods=["GET", "POST"])
+    def confirm_alert_email(token):
+        data = read_alert_email_token(token)
+        if data is None:
+            flash("That confirmation link is invalid or expired. Request a new one from your dashboard.",
+                  "danger")
+            return redirect(url_for("index"))
+        email, addr = data
+        if request.method == "GET":   # email scanners open links; only the button press counts
+            return render_template("confirm_alert_email.html", addr=addr)
+        db.set_alert_email(get_db(), email, addr)
+        flash(f"Alerts will now go to {addr}.", "success")
+        return redirect(url_for("dashboard") if session.get("email") == email else url_for("index"))
 
     @app.post("/api/phone")
     @login_required

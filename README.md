@@ -154,6 +154,25 @@ Buy one at [Cloudflare Registrar](https://dash.cloudflare.com) (sold at cost, an
 - The match also appears on both dashboards.
 - Emails are shown only to matched students, and only while both are "Open to trades".
 
+## Sign in with Google
+
+Ole Miss mail can quarantine emails from new domains, so students can sign in with their **@go.olemiss.edu Google account** instead of an emailed link.
+- The app only accepts accounts whose Google Workspace domain (`hd`) and email are in `ALLOWED_EMAIL_DOMAINS`, so personal Gmail accounts are rejected.
+- Students can also send alerts to a **personal email**. They confirm it from that inbox first, on the dashboard under "Where alerts go".
+
+Setup (about 10 minutes):
+1. Go to https://console.cloud.google.com, create a project called `RebelSnatch`, and open **APIs & Services**.
+2. Open **OAuth consent screen**:
+   - choose **External**
+   - app name `RebelSnatch`, with your email as the support and developer contact
+   - scopes: just `openid` and `email`
+   - **Publish app** (set to "In production"). Basic sign-in needs no Google review.
+3. Go to **Credentials → Create credentials → OAuth client ID → Web application**.
+   - Authorized redirect URI: `https://rebelsnatch.com/auth/google/callback`
+4. Copy the client ID and secret into Railway as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+If Ole Miss blocks third-party apps for student accounts, Google shows an "access blocked" page. Then ask IT to allow the app.
+
 ## Limits, schedule, stats, admin and texts
 
 All of these are set as Railway **Variables**:

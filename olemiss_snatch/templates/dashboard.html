@@ -74,6 +74,23 @@
   </div>
 </div>
 
+<div class="card snatch-card mt-3">
+  <div class="card-body">
+    <h2 class="h5 fw-bold mb-1"><i class="bi bi-envelope me-1"></i> Where alerts go</h2>
+    <p class="small text-muted mb-2">
+      {% if alert_email %}Alerts go to <strong>{{ alert_email }}</strong>.
+      {% else %}Alerts go to <strong>{{ user_email }}</strong>.{% endif %}
+      Not seeing our emails in your Ole Miss inbox? Add a personal email. We'll send it a confirmation link first.
+    </p>
+    <form class="d-flex flex-wrap gap-2" id="alert-email-form" onsubmit="return false">
+      <input class="form-control form-control-sm w-auto" id="alert-email-input" type="email"
+             placeholder="you@gmail.com" value="{{ alert_email or '' }}" aria-label="Personal email for alerts">
+      <button class="btn btn-sm btn-snatch" id="alert-email-save">Send confirmation</button>
+      {% if alert_email %}<button class="btn btn-sm btn-outline-secondary" id="alert-email-remove">Use my Ole Miss email</button>{% endif %}
+    </form>
+  </div>
+</div>
+
 {% if sms_enabled %}
 <div class="card snatch-card mt-3">
   <div class="card-body">

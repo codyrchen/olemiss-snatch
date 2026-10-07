@@ -188,6 +188,26 @@
   var phoneRemove = document.getElementById("phone-remove");
   if (phoneRemove) phoneRemove.addEventListener("click", function () { savePhone(""); });
 
+  // ---------- alert email ----------
+  var alertSave = document.getElementById("alert-email-save");
+  if (alertSave) alertSave.addEventListener("click", function () {
+    var addr = document.getElementById("alert-email-input").value.trim();
+    alertSave.disabled = true;
+    postJSON("/api/alert-email", { email: addr })
+      .then(function (res) {
+        if (res.pending) toast("Check " + res.pending + " for a confirmation link.");
+        else { toast("Alerts will go to your Ole Miss email."); setTimeout(function () { window.location.reload(); }, 900); }
+      })
+      .catch(function (err) { toast(err.message, "error"); })
+      .finally(function () { alertSave.disabled = false; });
+  });
+  var alertRemove = document.getElementById("alert-email-remove");
+  if (alertRemove) alertRemove.addEventListener("click", function () {
+    postJSON("/api/alert-email", { email: "" })
+      .then(function () { window.location.reload(); })
+      .catch(function (err) { toast(err.message, "error"); });
+  });
+
   // ---------- admin ----------
   var blockBtn = document.getElementById("block-btn");
   if (blockBtn) blockBtn.addEventListener("click", function () {

@@ -151,7 +151,7 @@ def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening
             continue
         subject, body = opening_email(opening, sub["email"])
         try:
-            mailer.send(sub["email"], subject, body)
+            mailer.send(db.alert_address(conn, sub["email"]), subject, body)
         except Exception as e:  # one bad address shouldn't stop the rest
             print(f"  ! email to {sub['email']} failed: {e}")
             continue

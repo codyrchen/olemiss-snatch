@@ -54,7 +54,7 @@ def refresh_matches(conn: sqlite3.Connection, mailer: Mailer, email: str,
             if view is None:
                 continue
             try:
-                mailer.send(to, *match_email(view, to))
+                mailer.send(db.alert_address(conn, to), *match_email(view, to))
             except Exception as e:  # the match still shows on both dashboards
                 print(f"  ! trade email to {to} failed: {e}")
     return matches
