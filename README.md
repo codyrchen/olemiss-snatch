@@ -1,16 +1,8 @@
 # olemiss-snatch
 
-Get notified when a seat opens in a full Ole Miss class. 
+[RebelSnatch](https://rebelsnatch.com) helps Ole Miss students get notified when a seat opens in a full class. 
 
 It reads public seat counts from Ole Miss's Banner class search (the same data as "Browse Classes"). It never logs in as a student and never registers anyone. It only watches and alerts.
-
-## Status
-
-- [x] Banner client: terms, subjects, sections with seat counts
-- [x] SQLite snapshots + detection of full → open seats
-- [x] Subscriptions + email alerts (waitlist order, CLI-managed)
-- [x] Website: email sign-in, course search, subscribe switches, waitlist position
-- [x] Hosting: Railway (website + poller in one service), Resend email, custom domain
 
 ## Setup
 
