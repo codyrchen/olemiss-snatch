@@ -97,7 +97,7 @@ Every alert email includes a one-click unsubscribe link.
 ```bash
 pip install -r requirements.txt
 python -c "import secrets; print(secrets.token_hex(32))"   # paste into .env as SECRET_KEY
-flask --app olemiss_snatch.web run --debug
+python -m flask --app olemiss_snatch.web run --debug
 ```
 
 Open http://localhost:5000. Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.

@@ -1,7 +1,7 @@
 """RebelSnatch website: sign in with an Ole Miss email, search courses, snatch full sections.
 
 Run locally:
-    flask --app olemiss_snatch.web run --debug
+    python -m flask --app olemiss_snatch.web run --debug
 """
 
 import hashlib
