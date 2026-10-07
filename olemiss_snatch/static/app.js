@@ -106,4 +106,69 @@
       })
       .finally(function () { sw.disabled = false; });
   });
+
+  // ---------- trades ----------
+  function postJSON(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().then(function (b) {
+        if (!r.ok) throw new Error(b.error || "Something went wrong.");
+        return b;
+      });
+    });
+  }
+
+  function afterTradeChange(res, quietMessage) {
+    if (res.matches && res.matches.length) {
+      toast("Trade match! Check the Trades box for their email.");
+      setTimeout(function () { window.location.hash = "trades"; window.location.reload(); }, 900);
+    } else if (quietMessage) {
+      toast(quietMessage);
+    }
+  }
+
+  var enrollBtn = document.getElementById("enroll-btn");
+  if (enrollBtn) {
+    enrollBtn.addEventListener("click", function () {
+      var crn = document.getElementById("enroll-select").value;
+      enrollBtn.disabled = true;
+      postJSON("/api/enrollment", { term: enrollBtn.dataset.term, crn: crn, open_to_trade: true })
+        .then(function () { window.location.hash = "trades"; window.location.reload(); })
+        .catch(function (err) { toast(err.message, "error"); enrollBtn.disabled = false; });
+    });
+  }
+
+  var openToTrade = document.getElementById("open-to-trade");
+  if (openToTrade) {
+    openToTrade.addEventListener("change", function () {
+      var on = openToTrade.checked;
+      postJSON("/api/enrollment", { term: openToTrade.dataset.term, crn: openToTrade.dataset.crn, open_to_trade: on })
+        .then(function (res) { afterTradeChange(res, on ? "You're open to trades." : "Trades paused for this course."); })
+        .catch(function (err) { openToTrade.checked = !on; toast(err.message, "error"); });
+    });
+  }
+
+  document.addEventListener("click", function (event) {
+    var btn = event.target.closest && event.target.closest("#leave-trades, .leave-trades-btn");
+    if (!btn) return;
+    btn.disabled = true;
+    postJSON("/api/enrollment", { term: btn.dataset.term, crn: null,
+                                  subject: btn.dataset.subject, course_number: btn.dataset.number })
+      .then(function () { window.location.reload(); })
+      .catch(function (err) { toast(err.message, "error"); btn.disabled = false; });
+  });
+
+  document.addEventListener("change", function (event) {
+    var box = event.target;
+    if (!box.classList || !box.classList.contains("trade-want")) return;
+    var want = box.checked;
+    box.disabled = true;
+    postJSON("/api/trade-want", { term: box.dataset.term, crn: box.dataset.crn, want: want })
+      .then(function (res) { afterTradeChange(res, want ? "Added. We'll email you if someone there wants your section." : "Removed."); })
+      .catch(function (err) { box.checked = !want; toast(err.message, "error"); })
+      .finally(function () { box.disabled = false; });
+  });
 })();

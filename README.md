@@ -142,6 +142,18 @@ Buy one at [Cloudflare Registrar](https://dash.cloudflare.com) (sold at cost, an
 - **Sign in:** open https://rebelsnatch.com and sign in with your Ole Miss email. That also tests that Resend is sending.
 - **Changing terms:** when registration moves to a new term, edit `SNATCH_TERMS`. Railway restarts the service with the new value.
 
+## Waitlists and Trades
+
+**Official waitlists come first.** Ole Miss's Experience/Banner waitlist holds a seat for the next student.
+- Sections with an active waitlist (`waitCapacity > 0` and open spots or people on it) show **"Waitlist N/M · join in Experience"** instead of an alert switch.
+- Alerts are never sent for sections that have people on the official waitlist.
+- How Banner reports these fields after waitlists close (the week before classes) is unconfirmed. The rule lives in one function, `banner.has_active_waitlist`.
+
+**Trades.** On a course page, a student picks the section they're in ("Join Trades") and checks **Trade** on full sections they'd switch to.
+- When two students each want the other's section, both get an email with the partner's address and swap steps.
+- The match also appears on both dashboards.
+- Emails are shown only to matched students, and only while both are "Open to trades".
+
 ## Notes on the data
 
 - Term codes look like `YYYYTT`: `10` is Fall, `20` is Winter, `30` is Spring and `50` is Summer. For example, `202730` is Spring 2027.

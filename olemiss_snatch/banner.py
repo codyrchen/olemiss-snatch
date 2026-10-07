@@ -24,6 +24,8 @@ class Section:
     wait_available: int
     instructor: str = ""
     meetings: str = ""   # e.g. "MWF 9:00-9:50am" ; "TR 11:00am-12:15pm"
+    wait_capacity: int = 0
+    wait_count: int = 0
 
     @property
     def is_full(self) -> bool:
@@ -35,8 +37,23 @@ class Section:
         return self.max_enrollment <= 0
 
     @property
+    def has_active_waitlist(self) -> bool:
+        return has_active_waitlist(self.wait_capacity, self.wait_available, self.wait_count)
+
+    @property
     def label(self) -> str:
         return f"{self.subject} {self.course_number}-{self.section}"
+
+
+def has_active_waitlist(capacity: int, available: int, count: int) -> bool:
+    """True when Ole Miss's official Banner waitlist is in use for a section.
+
+    Then a seat that opens goes to the waitlist first, so students should join
+    the waitlist instead of relying on our alerts. How Banner reports these
+    fields after waitlists close (the week before classes) is unconfirmed;
+    tune this one place if real data says otherwise.
+    """
+    return capacity > 0 and (available > 0 or count > 0)
 
 
 DAYS = [("monday", "M"), ("tuesday", "T"), ("wednesday", "W"), ("thursday", "R"),
@@ -86,6 +103,8 @@ def parse_section(raw: dict) -> Section:
         wait_available=int(raw.get("waitAvailable") or 0),
         instructor=_instructor(raw),
         meetings=_meetings(raw),
+        wait_capacity=int(raw.get("waitCapacity") or 0),
+        wait_count=int(raw.get("waitCount") or 0),
     )
 
 

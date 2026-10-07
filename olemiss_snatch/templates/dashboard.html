@@ -36,6 +36,10 @@
                   {{ s.subject }} {{ s.course_number }}<span class="d-sm-none">-{{ s.section }}</span></a>
                 <div class="small text-muted text-truncate" style="max-width: 16rem">{{ s.title }}</div>
                 {% if multi_term %}<span class="badge rounded-pill term-badge">{{ term_name(s.term) }}</span>{% endif %}
+                {% if has_active_waitlist(s.wait_capacity or 0, s.wait_available or 0, s.wait_count or 0) %}
+                  <div class="small"><a class="waitlist-link text-decoration-none" href="{{ REGISTRATION_URL }}"
+                     target="_blank" rel="noopener">Has an official waitlist now · join it in Experience</a></div>
+                {% endif %}
               </td>
               <td class="d-none d-sm-table-cell">{{ s.section }}<div class="small text-muted">CRN {{ s.crn }}</div></td>
               <td class="small text-muted d-none d-md-table-cell">{{ s.meetings or "TBA" }}</td>
@@ -64,6 +68,41 @@
         When a section opens, the first few people in line get an email with the CRN.
         Register in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a> right away.
       </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card snatch-card mt-3">
+  <div class="card-body">
+    <h2 class="h5 fw-bold mb-3"><i class="bi bi-arrow-left-right me-1"></i> Trades</h2>
+    {% if not matches %}
+      <p class="small text-muted mb-0">No trade matches yet. On a course page, pick the section you're in and
+        check the sections you'd trade for. We'll email you when someone wants to swap.</p>
+    {% else %}
+      {% for m in matches %}
+        <div class="trade-match">
+          <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+              <a class="fw-semibold course-link" href="{{ url_for('course', term=m.term, subject=m.subject, course_number=m.course_number) }}#trades">
+                {{ m.subject }} {{ m.course_number }}</a>
+              <span class="small text-muted">{{ m.title }}</span>
+              <div>Give <strong>{{ m.my_section }}</strong> (CRN {{ m.my_crn }}) → get
+                <strong>{{ m.their_section }}</strong> (CRN {{ m.their_crn }})</div>
+            </div>
+            <div class="d-flex gap-2 align-items-start">
+              <a class="btn btn-sm btn-snatch"
+                 href="mailto:{{ m.partner }}?subject={{ ('RebelSnatch trade: ' ~ m.subject ~ ' ' ~ m.course_number) | urlencode }}">
+                Email {{ m.partner }}</a>
+              <button class="btn btn-sm btn-outline-secondary leave-trades-btn" data-term="{{ m.term }}"
+                      data-subject="{{ m.subject }}" data-number="{{ m.course_number }}">Done</button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+      <details class="small text-muted mt-2">
+        <summary>How to swap safely</summary>
+        <pre class="swap-steps">{{ swap_steps }}</pre>
+      </details>
     {% endif %}
   </div>
 </div>

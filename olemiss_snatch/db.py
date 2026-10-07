@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS sections (
     updated_at      TEXT NOT NULL,
     instructor      TEXT NOT NULL DEFAULT '',
     meetings        TEXT NOT NULL DEFAULT '',
+    wait_capacity   INTEGER NOT NULL DEFAULT 0,
+    wait_count      INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (term, crn)
 );
 
@@ -59,6 +61,37 @@ CREATE TABLE IF NOT EXISTS login_tokens (
     used       INTEGER NOT NULL DEFAULT 0
 );
 
+-- Trades: self-reported current section per course, plus sections wanted in exchange.
+CREATE TABLE IF NOT EXISTS enrollments (
+    email         TEXT NOT NULL,
+    term          TEXT NOT NULL,
+    subject       TEXT NOT NULL,
+    course_number TEXT NOT NULL,
+    crn           TEXT NOT NULL,
+    open_to_trade INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL,
+    PRIMARY KEY (email, term, subject, course_number)
+);
+
+CREATE TABLE IF NOT EXISTS trade_wants (
+    email      TEXT NOT NULL,
+    term       TEXT NOT NULL,
+    crn        TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (email, term, crn)
+);
+
+-- Pairs already emailed about a match (email_a < email_b), so nobody is emailed twice.
+CREATE TABLE IF NOT EXISTS trade_matches (
+    term        TEXT NOT NULL,
+    email_a     TEXT NOT NULL,
+    crn_a       TEXT NOT NULL,
+    email_b     TEXT NOT NULL,
+    crn_b       TEXT NOT NULL,
+    notified_at TEXT NOT NULL,
+    PRIMARY KEY (term, email_a, crn_a, email_b, crn_b)
+);
+
 CREATE INDEX IF NOT EXISTS sections_course ON sections (term, subject, course_number);
 CREATE INDEX IF NOT EXISTS subscriptions_section ON subscriptions (term, crn);
 """
@@ -68,6 +101,8 @@ MIGRATIONS = {
     "sections": {
         "instructor": "TEXT NOT NULL DEFAULT ''",
         "meetings": "TEXT NOT NULL DEFAULT ''",
+        "wait_capacity": "INTEGER NOT NULL DEFAULT 0",
+        "wait_count": "INTEGER NOT NULL DEFAULT 0",
     },
 }
 
@@ -150,18 +185,20 @@ def save_snapshot(conn: sqlite3.Connection, sections: list[Section]) -> list[Ope
                 openings.append(Opening(s, prev["seats_available"], cur.lastrowid))
             conn.execute(
                 "INSERT INTO sections (term, crn, subject, course_number, section, title,"
-                " seats_available, max_enrollment, wait_available, updated_at, instructor, meetings)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                " seats_available, max_enrollment, wait_available, updated_at, instructor, meetings,"
+                " wait_capacity, wait_count)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 " ON CONFLICT (term, crn) DO UPDATE SET"
                 " subject = excluded.subject, course_number = excluded.course_number,"
                 " section = excluded.section, title = excluded.title,"
                 " seats_available = excluded.seats_available,"
                 " max_enrollment = excluded.max_enrollment,"
                 " wait_available = excluded.wait_available, updated_at = excluded.updated_at,"
-                " instructor = excluded.instructor, meetings = excluded.meetings",
+                " instructor = excluded.instructor, meetings = excluded.meetings,"
+                " wait_capacity = excluded.wait_capacity, wait_count = excluded.wait_count",
                 (s.term, s.crn, s.subject, s.course_number, s.section, s.title,
                  s.seats_available, s.max_enrollment, s.wait_available, now,
-                 s.instructor, s.meetings),
+                 s.instructor, s.meetings, s.wait_capacity, s.wait_count),
             )
     return openings
 
@@ -195,6 +232,7 @@ def list_subscriptions(conn: sqlite3.Connection, email: str | None = None):
     sql = (
         "SELECT sub.*, sec.subject, sec.course_number, sec.section, sec.title,"
         " sec.seats_available, sec.max_enrollment, sec.instructor, sec.meetings,"
+        " sec.wait_capacity, sec.wait_available, sec.wait_count,"
         " (SELECT COUNT(*) FROM subscriptions s2"
         "  WHERE s2.term = sub.term AND s2.crn = sub.crn AND s2.id <= sub.id) AS position,"
         " (SELECT COUNT(*) FROM subscriptions s3"
@@ -269,10 +307,12 @@ def course_sections(conn: sqlite3.Connection, term: str, subject: str, course_nu
         "SELECT sec.*,"
         " (SELECT COUNT(*) FROM subscriptions s WHERE s.term = sec.term AND s.crn = sec.crn) AS watchers,"
         " EXISTS (SELECT 1 FROM subscriptions s WHERE s.term = sec.term AND s.crn = sec.crn"
-        "         AND s.email = ?) AS subscribed"
+        "         AND s.email = ?) AS subscribed,"
+        " EXISTS (SELECT 1 FROM trade_wants w WHERE w.term = sec.term AND w.crn = sec.crn"
+        "         AND w.email = ?) AS trade_wanted"
         " FROM sections sec WHERE term = ? AND subject = ? AND course_number = ?"
         " ORDER BY section",
-        ((email or "").lower(), term, subject, course_number),
+        ((email or "").lower(), (email or "").lower(), term, subject, course_number),
     ).fetchall()
 
 
@@ -320,3 +360,115 @@ def use_login_token(conn: sqlite3.Connection, token_hash: str) -> str | None:
             return None
         conn.execute("UPDATE login_tokens SET used = 1 WHERE token_hash = ?", (token_hash,))
         return row["email"]
+
+
+# ---------- Trades ----------
+
+def get_enrollment(conn: sqlite3.Connection, email: str, term: str, subject: str, course_number: str):
+    return conn.execute(
+        "SELECT * FROM enrollments WHERE email = ? AND term = ? AND subject = ? AND course_number = ?",
+        (email.lower(), term, subject, course_number),
+    ).fetchone()
+
+
+def set_enrollment(conn: sqlite3.Connection, email: str, term: str, crn: str, open_to_trade: bool = True):
+    """Record which section `email` is in for that section's course. Returns the section row."""
+    sec = get_section(conn, term, crn)
+    if sec is None:
+        raise ValueError("Section not found.")
+    email = email.lower()
+    with conn:
+        conn.execute(
+            "INSERT INTO enrollments (email, term, subject, course_number, crn, open_to_trade, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT (email, term, subject, course_number) DO UPDATE SET"
+            " crn = excluded.crn, open_to_trade = excluded.open_to_trade",
+            (email, term, sec["subject"], sec["course_number"], crn, int(open_to_trade), _now()),
+        )
+        # You can't want the section you're already in.
+        conn.execute("DELETE FROM trade_wants WHERE email = ? AND term = ? AND crn = ?", (email, term, crn))
+    return sec
+
+
+def clear_enrollment(conn: sqlite3.Connection, email: str, term: str, subject: str, course_number: str):
+    """Leave Trades for a course: forget the current section and every want in that course."""
+    email = email.lower()
+    with conn:
+        conn.execute(
+            "DELETE FROM trade_wants WHERE email = ? AND term = ? AND crn IN"
+            " (SELECT crn FROM sections WHERE term = ? AND subject = ? AND course_number = ?)",
+            (email, term, term, subject, course_number),
+        )
+        conn.execute(
+            "DELETE FROM enrollments WHERE email = ? AND term = ? AND subject = ? AND course_number = ?",
+            (email, term, subject, course_number),
+        )
+
+
+def set_trade_want(conn: sqlite3.Connection, email: str, term: str, crn: str, want: bool):
+    """Mark a section of the same course as wanted in exchange for the user's current one."""
+    email = email.lower()
+    sec = get_section(conn, term, crn)
+    if sec is None:
+        raise ValueError("Section not found.")
+    if want:
+        mine = get_enrollment(conn, email, term, sec["subject"], sec["course_number"])
+        if mine is None:
+            raise ValueError("First pick the section you're in for this course.")
+        if mine["crn"] == crn:
+            raise ValueError("That's the section you're already in.")
+        with conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO trade_wants (email, term, crn, created_at) VALUES (?, ?, ?, ?)",
+                (email, term, crn, _now()),
+            )
+    else:
+        with conn:
+            conn.execute("DELETE FROM trade_wants WHERE email = ? AND term = ? AND crn = ?",
+                         (email, term, crn))
+    return sec
+
+
+def trade_wants_for(conn: sqlite3.Connection, email: str, term: str) -> set[str]:
+    return {r[0] for r in conn.execute(
+        "SELECT crn FROM trade_wants WHERE email = ? AND term = ?", (email.lower(), term))}
+
+
+def find_trade_matches(conn: sqlite3.Connection, email: str, term: str | None = None,
+                       subject: str | None = None, course_number: str | None = None):
+    """Mutual swaps: I'm in X and want Y; they're in Y and want X. Both opted in."""
+    sql = (
+        "SELECT me.term, me.subject, me.course_number,"
+        " me.crn AS my_crn, mine.section AS my_section,"
+        " them.email AS partner, them.crn AS their_crn, theirs.section AS their_section,"
+        " theirs.title AS title, theirs.meetings AS their_meetings, mine.meetings AS my_meetings"
+        " FROM enrollments me"
+        " JOIN trade_wants my_want ON my_want.email = me.email AND my_want.term = me.term"
+        " JOIN enrollments them ON them.term = me.term AND them.subject = me.subject"
+        "   AND them.course_number = me.course_number AND them.crn = my_want.crn"
+        "   AND them.email != me.email AND them.open_to_trade = 1"
+        " JOIN trade_wants their_want ON their_want.email = them.email"
+        "   AND their_want.term = me.term AND their_want.crn = me.crn"
+        " JOIN sections mine ON mine.term = me.term AND mine.crn = me.crn"
+        " JOIN sections theirs ON theirs.term = them.term AND theirs.crn = them.crn"
+        " WHERE me.email = ? AND me.open_to_trade = 1"
+    )
+    params: list = [email.lower()]
+    for col, val in (("me.term", term), ("me.subject", subject), ("me.course_number", course_number)):
+        if val is not None:
+            sql += f" AND {col} = ?"
+            params.append(val)
+    return conn.execute(sql + " ORDER BY me.subject, me.course_number, them.created_at", params).fetchall()
+
+
+def record_trade_match(conn: sqlite3.Connection, term: str, email_1: str, crn_1: str,
+                       email_2: str, crn_2: str) -> bool:
+    """Remember that this pair was told about their match. False if already recorded."""
+    (ea, ca), (eb, cb) = sorted([(email_1.lower(), crn_1), (email_2.lower(), crn_2)])
+    with conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO trade_matches (term, email_a, crn_a, email_b, crn_b, notified_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (term, ea, ca, eb, cb, _now()),
+        )
+    return cur.rowcount == 1

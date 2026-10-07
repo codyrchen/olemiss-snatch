@@ -15,8 +15,10 @@ from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, r
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db
+from .banner import has_active_waitlist
 from .links import base_url, read_unsubscribe_token, secret_key
 from .notify import REGISTRATION_URL, Mailer, load_env
+from .trades import SWAP_STEPS, refresh_matches
 
 SITE_NAME = "RebelSnatch"
 LOGIN_LINK_MINUTES = 15
@@ -77,7 +79,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     )
     app.extensions["mailer"] = mailer or Mailer()
     app.jinja_env.globals.update(SITE_NAME=SITE_NAME, term_name=term_name,
-                                 REGISTRATION_URL=REGISTRATION_URL)
+                                 REGISTRATION_URL=REGISTRATION_URL,
+                                 has_active_waitlist=has_active_waitlist)
 
     def get_db():
         if "db" not in g:
@@ -192,6 +195,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         term = current_term()
         subs = db.list_subscriptions(conn, session["email"])
         return render_template("dashboard.html", term=term, terms=db.terms(conn), subs=subs,
+                               matches=db.find_trade_matches(conn, session["email"]),
+                               swap_steps=SWAP_STEPS,
                                multi_term=len({s["term"] for s in subs}) > 1,
                                updated=time_ago(db.last_updated(conn, term)) if term else None)
 
@@ -204,8 +209,14 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         if not sections:
             abort(404)
         session["term"] = term
-        return render_template("course.html", term=term, terms=db.terms(conn), sections=sections,
-                               course=sections[0], updated=time_ago(db.last_updated(conn, term)))
+        c = sections[0]
+        email = session["email"]
+        return render_template(
+            "course.html", term=term, terms=db.terms(conn), sections=sections, course=c,
+            updated=time_ago(db.last_updated(conn, term)),
+            enrollment=db.get_enrollment(conn, email, term, c["subject"], c["course_number"]),
+            matches=db.find_trade_matches(conn, email, term, c["subject"], c["course_number"]),
+        )
 
     @app.get("/healthz")
     def healthz():
@@ -260,12 +271,57 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
                 return jsonify(error="This section is closed."), 400
             if sec["seats_available"] > 0:
                 return jsonify(error="This section has open seats. Register now!"), 400
+            if has_active_waitlist(sec["wait_capacity"], sec["wait_available"], sec["wait_count"]):
+                return jsonify(error="This section has an official waitlist. Join it in Experience "
+                                     "so the seat is held for you."), 400
             db.add_subscription(conn, email, term, crn)
         else:
             db.remove_subscription(conn, email, term, crn)
         watchers = len(db.subscribers_for(conn, term, crn))
         return jsonify(subscribed=on, position=db.subscription_position(conn, email, term, crn),
                        watchers=watchers)
+
+    def _matches_json(conn, email, term, subject, course_number):
+        mailer = app.extensions["mailer"]
+        matches = refresh_matches(conn, mailer, email, term, subject, course_number)
+        return [{"give": f'{m["subject"]} {m["course_number"]}-{m["my_section"]}',
+                 "get": f'{m["subject"]} {m["course_number"]}-{m["their_section"]}',
+                 "partner": m["partner"]} for m in matches]
+
+    @app.post("/api/enrollment")
+    @login_required
+    @json_post
+    def api_enrollment():
+        """Set (or clear, with crn=null) the section I'm in for a course, and my trade opt-in."""
+        body = request.get_json()
+        term = str(body.get("term"))
+        email = session["email"]
+        conn = get_db()
+        crn = body.get("crn")
+        if crn:
+            try:
+                sec = db.set_enrollment(conn, email, term, str(crn), bool(body.get("open_to_trade", True)))
+            except ValueError as e:
+                return jsonify(error=str(e)), 400
+            subject, number = sec["subject"], sec["course_number"]
+        else:
+            subject, number = str(body.get("subject", "")).upper(), str(body.get("course_number", "")).upper()
+            db.clear_enrollment(conn, email, term, subject, number)
+        return jsonify(matches=_matches_json(conn, email, term, subject, number))
+
+    @app.post("/api/trade-want")
+    @login_required
+    @json_post
+    def api_trade_want():
+        body = request.get_json()
+        term, crn = str(body.get("term")), str(body.get("crn"))
+        email = session["email"]
+        conn = get_db()
+        try:
+            sec = db.set_trade_want(conn, email, term, crn, bool(body.get("want")))
+        except ValueError as e:
+            return jsonify(error=str(e)), 400
+        return jsonify(matches=_matches_json(conn, email, term, sec["subject"], sec["course_number"]))
 
     return app
 

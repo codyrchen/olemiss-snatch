@@ -7,8 +7,8 @@
       <div class="col-lg-6">
         <h1 class="display-4 fw-bold mb-3">Snatch a seat in that full class.</h1>
         <p class="lead mb-4">
-          Subscribe to full sections and {{ SITE_NAME }} emails you the moment a spot opens up.
-          Alerts go out in the order people subscribed, so the earlier you get in line, the better your chances.
+          Seat alerts for when the official waitlist can't help, plus <strong>Trades</strong>:
+          swap your section with a student who wants yours.
         </p>
         <form method="post" action="{{ url_for('login') }}" class="login-form">
           <label for="email" class="form-label fw-semibold">Sign in with your Ole Miss email</label>
@@ -53,18 +53,18 @@
   <div class="row g-4 text-center">
     <div class="col-md-4">
       <div class="step-icon"><i class="bi bi-search"></i></div>
-      <h5 class="fw-bold mt-3">Find your class</h5>
-      <p class="text-muted">Search any course this term and see live seat counts for every section.</p>
+      <h5 class="fw-bold mt-3">See every section at once</h5>
+      <p class="text-muted">Live seats, waitlists, times and instructors. If a section has an open waitlist, we send you to join it.</p>
     </div>
     <div class="col-md-4">
-      <div class="step-icon"><i class="bi bi-toggle-on"></i></div>
-      <h5 class="fw-bold mt-3">Flip the switch</h5>
-      <p class="text-muted">Subscribe to full sections. You'll see your place in line on your dashboard.</p>
+      <div class="step-icon"><i class="bi bi-bell"></i></div>
+      <h5 class="fw-bold mt-3">Alerts when waitlists can't help</h5>
+      <p class="text-muted">Sections without a waitlist, and add/drop week after waitlists close: we email you the CRN the moment a seat opens.</p>
     </div>
     <div class="col-md-4">
-      <div class="step-icon"><i class="bi bi-envelope-paper"></i></div>
-      <h5 class="fw-bold mt-3">Get the email, grab the seat</h5>
-      <p class="text-muted">When a seat opens, we email you the CRN. Register in Experience before someone else does.</p>
+      <div class="step-icon"><i class="bi bi-arrow-left-right"></i></div>
+      <h5 class="fw-bold mt-3">Trades</h5>
+      <p class="text-muted">In 007 but want 011? If someone in 011 wants 007, we connect you both so you can swap.</p>
     </div>
   </div>
 </section>

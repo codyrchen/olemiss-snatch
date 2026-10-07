@@ -19,14 +19,16 @@
             <th>Section</th><th class="d-none d-sm-table-cell">CRN</th><th>Time</th>
             <th class="d-none d-md-table-cell">Instructor</th>
             <th>Seats</th><th class="text-center d-none d-sm-table-cell">Watching</th>
-            <th class="text-end"><span class="d-none d-sm-inline">Subscribe</span></th>
+            <th class="text-end"><span class="d-none d-sm-inline">Alert</span></th>
+            {% if enrollment %}<th class="text-center">Trade<span class="d-none d-sm-inline"> for</span></th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for s in sections %}
           {% set closed = s.max_enrollment <= 0 %}
           {% set full = not closed and s.seats_available <= 0 %}
-          <tr class="{% if closed %}text-muted{% endif %}">
+          {% set mine = enrollment and enrollment.crn == s.crn %}
+          <tr class="{% if closed %}text-muted{% endif %}{% if mine %} my-section{% endif %}">
             <td class="fw-semibold">{{ s.section }}
               <div class="small text-muted fw-normal d-sm-none">{{ s.crn }}</div></td>
             <td class="d-none d-sm-table-cell">{{ s.crn }}</td>
@@ -39,7 +41,15 @@
             </td>
             <td class="text-center d-none d-sm-table-cell"><span class="watchers" data-watchers-crn="{{ s.crn }}">{{ s.watchers }}</span></td>
             <td class="text-end">
-              {% if full or s.subscribed %}
+              {% if mine and not s.subscribed %}
+                <span class="small text-muted">&ndash;</span>
+              {% elif full and not s.subscribed and has_active_waitlist(s.wait_capacity, s.wait_available, s.wait_count) %}
+                <a class="small fw-semibold text-decoration-none waitlist-link" href="{{ REGISTRATION_URL }}"
+                   target="_blank" rel="noopener"
+                   title="Ole Miss holds the seat for the next person on the waitlist">
+                  Waitlist {{ s.wait_count }}/{{ s.wait_capacity }}<span class="d-none d-sm-inline"> · join in Experience</span>
+                  <i class="bi bi-box-arrow-up-right"></i></a>
+              {% elif full or s.subscribed %}
                 <div class="form-check form-switch d-inline-block m-0">
                   <input class="form-check-input snatch-switch" type="checkbox" role="switch"
                          data-term="{{ term }}" data-crn="{{ s.crn }}"
@@ -50,17 +60,80 @@
                 <span class="small">-</span>
               {% else %}
                 <a class="small fw-semibold text-success text-decoration-none" href="{{ REGISTRATION_URL }}"
-                   target="_blank" rel="noopener"><span class="d-none d-sm-inline">Open: </span>register <i class="bi bi-box-arrow-up-right"></i></a>
+                   target="_blank" rel="noopener"><span class="d-none d-sm-inline">Open: </span>register<span class="d-none d-sm-inline"> <i class="bi bi-box-arrow-up-right"></i></span></a>
               {% endif %}
             </td>
+            {% if enrollment %}
+            <td class="text-center">
+              {% if mine %}
+                <span class="badge rounded-pill you-badge"><span class="d-sm-none">You</span><span class="d-none d-sm-inline">You're here</span></span>
+              {% elif not closed and (full or s.trade_wanted) %}
+                <input class="form-check-input trade-want" type="checkbox" data-term="{{ term }}"
+                       data-crn="{{ s.crn }}" {% if s.trade_wanted %}checked{% endif %}
+                       aria-label="Trade my section for section {{ s.section }}">
+              {% endif %}
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     <p class="small text-muted mt-3 mb-0">
-      You can subscribe to sections with no open seats. If a section has seats, register for it directly.
+      Get alerts for full sections without an official waitlist (or after waitlists close the week before classes).
+      If a section has an open waitlist, join it in Experience: Ole Miss holds the seat for you.
     </p>
+  </div>
+</div>
+
+<div class="card snatch-card mt-3" id="trades">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+      <h3 class="h5 fw-bold mb-0"><i class="bi bi-arrow-left-right me-1"></i> Trades</h3>
+      <span class="small text-muted">Swap sections with another student</span>
+    </div>
+    <p class="small text-muted">
+      Already in this course but want a different section? Tell us which section you're in and check the ones
+      you'd trade for. When someone in one of those sections wants yours, we email you both.
+    </p>
+
+    {% if not enrollment %}
+      <form class="d-flex flex-wrap gap-2 align-items-center" id="enroll-form" onsubmit="return false">
+        <label class="small fw-semibold" for="enroll-select">I'm in section</label>
+        <select class="form-select form-select-sm w-auto" id="enroll-select">
+          {% for s in sections if s.max_enrollment > 0 %}
+            <option value="{{ s.crn }}">{{ s.section }} · {{ s.meetings or "TBA" }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-snatch" id="enroll-btn" data-term="{{ term }}">Join Trades</button>
+      </form>
+    {% else %}
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <span class="small">You're in <strong>{{ course.subject }} {{ course.course_number }}-{{
+          (sections | selectattr("crn", "equalto", enrollment.crn) | first).section }}</strong>.
+          Check <strong>Trade</strong> on the full sections you'd switch to.</span>
+        <div class="form-check form-switch m-0">
+          <input class="form-check-input" type="checkbox" role="switch" id="open-to-trade"
+                 data-term="{{ term }}" data-crn="{{ enrollment.crn }}"
+                 {% if enrollment.open_to_trade %}checked{% endif %}>
+          <label class="form-check-label small" for="open-to-trade">Open to trades</label>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" id="leave-trades" data-term="{{ term }}"
+                data-subject="{{ course.subject }}" data-number="{{ course.course_number }}">Leave Trades</button>
+      </div>
+
+      {% if matches %}
+        <div class="mt-3">
+          {% for m in matches %}
+            <div class="trade-match">
+              <div><strong>Match!</strong> Give {{ m.my_section }} → get {{ m.their_section }}
+                · <a href="mailto:{{ m.partner }}?subject={{ ('RebelSnatch trade: ' ~ m.subject ~ ' ' ~ m.course_number) | urlencode }}">{{ m.partner }}</a></div>
+              <div class="small text-muted">Email them, agree on a time, then both drop and add in Experience at the same moment.</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}

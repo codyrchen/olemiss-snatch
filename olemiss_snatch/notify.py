@@ -99,6 +99,10 @@ def opening_email(opening: db.Opening, email: str) -> tuple[str, str]:
 def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening) -> list[str]:
     """Email the next batch of subscribers in waitlist order. Returns who was emailed."""
     s = opening.section
+    if s.wait_count > 0:
+        # Banner offers this seat to the official waitlist first; an alert would mislead.
+        print(f"  (skipping alerts for {s.crn}: {s.wait_count} on the official waitlist)")
+        return []
     batch = max(s.seats_available, 1) * BATCH_MULTIPLIER
     sent = []
     for sub in db.subscribers_for(conn, s.term, s.crn)[:batch]:
@@ -112,5 +116,4 @@ def notify_opening(conn: sqlite3.Connection, mailer: Mailer, opening: db.Opening
             continue
         db.record_notification(conn, sub["id"], opening.opening_id)
         sent.append(sub["email"])
-    # TODO: when the website exists, notify the next batch if seats are still open later.
     return sent
