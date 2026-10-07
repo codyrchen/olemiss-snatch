@@ -12,6 +12,7 @@ from functools import wraps
 
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
                    session, url_for)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db
 from .links import base_url, read_unsubscribe_token, secret_key
@@ -61,7 +62,11 @@ def term_name(code: str) -> str:
 
 def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flask:
     load_env()
+    if base_url().startswith("https://") and secret_key() == "dev-only-change-me":
+        raise RuntimeError("Set SECRET_KEY before running the site on a public https BASE_URL.")
     app = Flask(__name__)
+    # Railway (and most hosts) sit behind a proxy that terminates HTTPS.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config.update(
         SECRET_KEY=secret_key(),
         SESSION_COOKIE_SAMESITE="Lax",
@@ -193,6 +198,11 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
         session["term"] = term
         return render_template("course.html", term=term, terms=db.terms(conn), sections=sections,
                                course=sections[0], updated=time_ago(db.last_updated(conn, term)))
+
+    @app.get("/healthz")
+    def healthz():
+        get_db().execute("SELECT 1")
+        return "ok"
 
     @app.get("/about")
     def about():

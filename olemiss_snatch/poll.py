@@ -4,10 +4,14 @@ Examples:
     python -m olemiss_snatch.poll --list-terms
     python -m olemiss_snatch.poll --term 202710 --subjects MATH CSCI
     python -m olemiss_snatch.poll --term 202710 --every 300      # all subjects, every 5 min
+    python -m olemiss_snatch.poll --term 202730 202710 --every 300   # Spring and Fall
     python -m olemiss_snatch.poll --test-email you@go.olemiss.edu
+
+On a server, settings come from SNATCH_TERMS, SNATCH_DB and POLL_EVERY instead of flags.
 """
 
 import argparse
+import os
 import sys
 import time
 
@@ -17,11 +21,9 @@ from .notify import Mailer, load_env, notify_opening
 
 
 def _progress(msg: str):
-    """Overwrite one status line in a terminal; plain lines when piped to a log."""
+    """Overwrite one status line in a terminal; stay quiet in server logs."""
     if sys.stdout.isatty():
         print(f"\r{msg:<60}", end="", flush=True)
-    else:
-        print(msg)
 
 
 def _clear_progress():
@@ -56,18 +58,24 @@ def poll_once(client: BannerClient, conn, term: str, subjects: list[str], mailer
     return total_openings
 
 
+SUBJECT_REFRESH_SECONDS = 6 * 3600
+
+
 def main(argv=None):
+    load_env()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--term", help="term code, e.g. 202710 (see --list-terms)")
+    p.add_argument("--term", nargs="+", default=os.environ.get("SNATCH_TERMS", "").split() or None,
+                   help="term code(s), e.g. 202730 202710 (default: $SNATCH_TERMS; see --list-terms)")
     p.add_argument("--subjects", nargs="+", help="subject codes; default is every subject in the term")
-    p.add_argument("--db", default="snatch.db", help="SQLite file (default: snatch.db)")
-    p.add_argument("--every", type=int, help="repeat every N seconds instead of running once")
+    p.add_argument("--db", default=os.environ.get("SNATCH_DB", "snatch.db"),
+                   help="SQLite file (default: $SNATCH_DB or snatch.db)")
+    p.add_argument("--every", type=int, default=int(os.environ.get("POLL_EVERY", 0)) or None,
+                   help="repeat every N seconds instead of running once (default: $POLL_EVERY)")
     p.add_argument("--delay", type=float, default=1.0, help="seconds between Banner requests")
     p.add_argument("--list-terms", action="store_true", help="print available terms and exit")
     p.add_argument("--test-email", metavar="ADDRESS", help="send a test email and exit")
     args = p.parse_args(argv)
 
-    load_env()
     mailer = Mailer()
 
     if args.test_email:
@@ -78,7 +86,7 @@ def main(argv=None):
         return
 
     if not mailer.configured:
-        print("note: SMTP not configured (.env missing?); alerts will be printed, not emailed")
+        print("note: email not configured (.env missing?); alerts will be printed, not emailed")
 
     client = BannerClient(delay=args.delay)
 
@@ -87,14 +95,31 @@ def main(argv=None):
             print(t["code"], t["description"])
         return
     if not args.term:
-        p.error("--term is required (use --list-terms to see codes)")
+        p.error("--term is required (or set SNATCH_TERMS; use --list-terms to see codes)")
 
-    subjects = args.subjects or [s["code"] for s in client.get_subjects(args.term)]
     conn = db.connect(args.db)
+    subjects: dict[str, list[str]] = {}
+    subjects_fetched = 0.0
 
     while True:
-        print(time.strftime("[%Y-%m-%d %H:%M:%S]"), f"polling term {args.term}")
-        poll_once(client, conn, args.term, [s.upper() for s in subjects], mailer)
+        stale = time.time() - subjects_fetched > SUBJECT_REFRESH_SECONDS
+        if not args.subjects and (stale or any(t not in subjects for t in args.term)):
+            for term in args.term:
+                try:
+                    subjects[term] = [s["code"] for s in client.get_subjects(term)]
+                except Exception as e:  # retried next pass
+                    print(f"  ! could not load subjects for {term}: {e}", file=sys.stderr)
+            if all(t in subjects for t in args.term):
+                subjects_fetched = time.time()
+        for term in args.term:
+            term_subjects = [s.upper() for s in args.subjects] if args.subjects else subjects.get(term)
+            if not term_subjects:
+                continue
+            print(time.strftime("[%Y-%m-%d %H:%M:%S]"), f"polling term {term}", flush=True)
+            try:
+                poll_once(client, conn, term, term_subjects, mailer)
+            except Exception as e:  # keep the loop alive if Banner or the network hiccups
+                print(f"  ! poll of {term} failed: {e}", file=sys.stderr)
         if not args.every:
             break
         time.sleep(args.every)

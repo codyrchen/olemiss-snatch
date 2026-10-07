@@ -10,7 +10,7 @@ It reads public seat counts from Ole Miss's Banner class search (the same data a
 - [x] SQLite snapshots + detection of full → open seats
 - [x] Subscriptions + email alerts (waitlist order, CLI-managed)
 - [x] Website: email sign-in, course search, subscribe switches, waitlist position
-- [ ] Hosting / scheduled polling
+- [x] Hosting: Railway (website + poller in one service), Resend email, custom domain
 
 ## Setup
 
@@ -103,6 +103,52 @@ python -m flask --app olemiss_snatch.web run --debug
 Open http://127.0.0.1:5000. (On a Mac, `localhost:5000` can hit AirPlay Receiver and show 403 Forbidden.) Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.
 
 Without SMTP settings, the sign-in link is printed in the Terminal running Flask instead of being emailed.
+
+## Deploy (Railway + Resend + your domain)
+
+Costs: Railway Hobby about $5/month (it starts with a free trial), a domain about $10/year, and Resend free (3,000 emails/month).
+
+Railway's Hobby plan blocks SMTP, so on the server the app sends email through Resend's API instead of Gmail. Locally, Gmail SMTP keeps working.
+
+### 1. Buy a domain
+
+Buy one at [Cloudflare Registrar](https://dash.cloudflare.com) (sold at cost, and its DNS works well with Railway). Example: `rebelsnatch.com`.
+
+### 2. Set up Resend
+
+1. Sign up at https://resend.com, go to **Domains → Add Domain** and enter your domain.
+2. Resend shows a few DNS records (TXT and MX). In Cloudflare, go to **your domain → DNS → Records** and add each one exactly as shown.
+3. Back in Resend, click **Verify**. It can take a few minutes.
+4. Go to **API Keys → Create API Key** (sending access) and copy the key, which starts with `re_`.
+
+### 3. Create the Railway service
+
+1. Sign up at https://railway.com with GitHub.
+2. Click **New Project → Deploy from GitHub repo** and pick `olemiss-snatch`. Give Railway access to the repo if it asks.
+3. Add a **volume** so the database survives redeploys: on the project canvas, right-click (or press `Cmd + K`), choose **Volume**, attach it to the service, and set the mount path to `/data`.
+4. Open the service's **Variables** tab, then **Raw Editor**, and paste the following, filling in your values:
+   ```
+   SECRET_KEY=<run: python -c "import secrets; print(secrets.token_hex(32))">
+   BASE_URL=https://rebelsnatch.com
+   RESEND_API_KEY=re_...
+   MAIL_FROM=RebelSnatch <alerts@rebelsnatch.com>
+   SNATCH_DB=/data/snatch.db
+   SNATCH_TERMS=202730 202710
+   POLL_EVERY=300
+   ```
+5. Railway redeploys. `railway.json` tells it to run `start.sh`, which starts the poller and the website. It also tells Railway to health-check `/healthz`.
+
+### 4. Point your domain at Railway
+
+1. In the service, go to **Settings → Networking → Custom Domain** and enter `rebelsnatch.com`.
+2. Railway shows a **CNAME** record (and sometimes a TXT record). Add it in Cloudflare DNS with the proxy set to **DNS only** (grey cloud).
+3. Wait for Railway to show the domain as active. It issues the HTTPS certificate automatically.
+
+### 5. Check it
+
+- **Deploy logs:** after a few minutes you should see `checked 8xxx sections in 1xx subjects` for each term.
+- **Sign in:** open https://rebelsnatch.com and sign in with your Ole Miss email. That also tests that Resend is sending.
+- **Changing terms:** when registration moves to a new term, edit `SNATCH_TERMS`. Railway restarts the service with the new value.
 
 ## Notes on the data
 

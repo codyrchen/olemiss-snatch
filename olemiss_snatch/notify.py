@@ -5,6 +5,8 @@ import smtplib
 import sqlite3
 from email.message import EmailMessage
 
+import requests
+
 from . import db
 from .links import base_url, unsubscribe_url
 
@@ -29,10 +31,17 @@ def load_env(path: str = ".env"):
         pass
 
 
+RESEND_URL = "https://api.resend.com/emails"
+
+
 class Mailer:
-    """Sends via SMTP when configured, otherwise prints the email (dry run)."""
+    """Sends via Resend's API or SMTP, whichever is configured; otherwise prints (dry run).
+
+    Resend is for hosting (Railway blocks SMTP on cheaper plans); SMTP/Gmail works locally.
+    """
 
     def __init__(self):
+        self.resend_key = os.environ.get("RESEND_API_KEY")
         self.host = os.environ.get("SMTP_HOST")
         self.port = int(os.environ.get("SMTP_PORT", "587"))
         self.user = os.environ.get("SMTP_USER")
@@ -41,11 +50,21 @@ class Mailer:
 
     @property
     def configured(self) -> bool:
-        return bool(self.host and self.user and self.password)
+        return bool(self.resend_key) or bool(self.host and self.user and self.password)
 
     def send(self, to: str, subject: str, body: str):
+        if self.resend_key:
+            r = requests.post(
+                RESEND_URL,
+                headers={"Authorization": f"Bearer {self.resend_key}"},
+                json={"from": self.sender, "to": [to], "subject": subject, "text": body},
+                timeout=30,
+            )
+            if r.status_code >= 400:
+                raise RuntimeError(f"Resend error {r.status_code}: {r.text[:200]}")
+            return
         if not self.configured:
-            print(f"--- (dry run, SMTP not configured) email to {to} ---\n"
+            print(f"--- (dry run, email not configured) email to {to} ---\n"
                   f"Subject: {subject}\n\n{body}\n---")
             return
         msg = EmailMessage()

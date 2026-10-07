@@ -1,6 +1,8 @@
 """SQLite storage for section snapshots and seat-opening events."""
 
 import sqlite3
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -81,9 +83,16 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def connect(path: str = "snatch.db") -> sqlite3.Connection:
-    conn = sqlite3.connect(path, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+_initialized: set[str] = set()
+_init_lock = threading.Lock()
+
+
+def _setup(conn: sqlite3.Connection, path: str):
+    """Create tables, apply migrations, and switch the file to WAL mode."""
+    # WAL lets the website read while the poller writes. The setting is stored
+    # in the file, so only switch if needed (switching takes an exclusive lock).
+    if path != ":memory:" and conn.execute("PRAGMA journal_mode").fetchone()[0] != "wal":
+        conn.execute("PRAGMA journal_mode = WAL")
     for table, columns in MIGRATIONS.items():
         existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         if existing:
@@ -91,6 +100,29 @@ def connect(path: str = "snatch.db") -> sqlite3.Connection:
                 if name not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
     conn.executescript(SCHEMA)
+
+
+def connect(path: str = "snatch.db") -> sqlite3.Connection:
+    # timeout: wait up to 15s for another process's write instead of failing.
+    conn = sqlite3.connect(path, check_same_thread=False, timeout=15)
+    conn.row_factory = sqlite3.Row
+    if path == ":memory:":
+        _setup(conn, path)
+        return conn
+    # The website opens a connection per request; only the first one in each
+    # process runs setup. Several processes (web workers, poller) may start at
+    # once, so retry briefly if another one holds the lock.
+    with _init_lock:
+        if path not in _initialized:
+            for attempt in range(20):
+                try:
+                    _setup(conn, path)
+                    break
+                except sqlite3.OperationalError as e:
+                    if "locked" not in str(e) or attempt == 19:
+                        raise
+                    time.sleep(0.25)
+            _initialized.add(path)
     return conn
 
 
