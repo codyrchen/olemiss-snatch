@@ -6,7 +6,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 
 
 def base_url() -> str:
-    return os.environ.get("BASE_URL", "http://localhost:5000").rstrip("/")
+    return os.environ.get("BASE_URL", "http://127.0.0.1:5000").rstrip("/")
 
 
 def secret_key() -> str:

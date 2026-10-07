@@ -100,7 +100,7 @@ python -c "import secrets; print(secrets.token_hex(32))"   # paste into .env as 
 python -m flask --app olemiss_snatch.web run --debug
 ```
 
-Open http://localhost:5000. Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.
+Open http://127.0.0.1:5000. (On a Mac, `localhost:5000` can hit AirPlay Receiver and show 403 Forbidden.) Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.
 
 Without SMTP settings, the sign-in link is printed in the Terminal running Flask instead of being emailed.
 

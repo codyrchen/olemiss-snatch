@@ -162,7 +162,7 @@ def test_subscribe_requires_fetch_header(client, app):
 def test_unsubscribe_link(client, app):
     conn = db.connect(app.config["DB_PATH"])
     db.add_subscription(conn, "cody@go.olemiss.edu", "202710", "10001")
-    path = unsubscribe_url("cody@go.olemiss.edu", "202710", "10001").split("localhost:5000", 1)[1]
+    path = unsubscribe_url("cody@go.olemiss.edu", "202710", "10001").split("127.0.0.1:5000", 1)[1]
 
     assert b"Stop alerts for MATH 1150-001" in client.get(path).data
     assert db.subscribers_for(conn, "202710", "10001")  # GET doesn't unsubscribe
