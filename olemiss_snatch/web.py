@@ -5,6 +5,7 @@ Run locally:
 """
 
 import hashlib
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -77,6 +78,8 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     if base_url().startswith("https://") and secret_key() == "dev-only-change-me":
         raise RuntimeError("Set SECRET_KEY before running the site on a public https BASE_URL.")
     app = Flask(__name__)
+    if not app.debug:  # make app/module errors show up in Railway's logs
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     # Railway (and most hosts) sit behind a proxy that terminates HTTPS.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config.update(

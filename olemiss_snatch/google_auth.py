@@ -15,7 +15,11 @@ import secrets
 import time
 from urllib.parse import urlencode
 
+import logging
+
 import requests
+
+log = logging.getLogger(__name__)
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -68,15 +72,24 @@ def verified_email(code: str, redirect_uri: str, nonce: str, allowed_domains: li
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }, timeout=15)
-    if r.status_code != 200 or "id_token" not in r.json():
+    try:
+        body = r.json()
+    except ValueError:
+        body = {}
+    if r.status_code != 200 or "id_token" not in body:
+        # e.g. invalid_client (wrong ID/secret) or redirect_uri_mismatch
+        log.error("Google token exchange failed (%s): %s", r.status_code, r.text[:300])
         raise GoogleAuthError("Google sign-in didn't go through. Please try again.")
-    claims = _decode_jwt_payload(r.json()["id_token"])
+    claims = _decode_jwt_payload(body["id_token"])
 
     if claims.get("iss") not in ISSUERS or claims.get("aud") != client_id():
+        log.error("Google ID token rejected: iss=%r aud=%r (expected aud %r)",
+                  claims.get("iss"), claims.get("aud"), client_id())
         raise GoogleAuthError("Google sign-in didn't go through. Please try again.")
     if claims.get("exp", 0) < time.time():
         raise GoogleAuthError("That sign-in expired. Please try again.")
     if claims.get("nonce") != nonce:
+        log.error("Google ID token rejected: nonce mismatch")
         raise GoogleAuthError("Google sign-in didn't go through. Please try again.")
 
     email = str(claims.get("email", "")).lower()
