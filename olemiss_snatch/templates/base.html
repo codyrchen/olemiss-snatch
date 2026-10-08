@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{{ url_for('static', filename='mascot.svg') }}" type="image/svg+xml">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +14,8 @@
 <body class="{% block body_class %}{% endblock %}">
   <nav class="site-nav">
     <div class="wrap">
-      <a class="wordmark" href="{{ url_for('index') }}">{{ SITE_NAME }}</a>
+      <a class="wordmark" href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='mascot.svg') }}" alt=""><span class="{{ 'd-none d-sm-inline' if user_email }}">{{ SITE_NAME }}</span></a>
+      <span class="status-chip{% if not checking %} paused{% endif %}" title="{{ checking_title }}"><span class="dot"></span>{{ "Checking seats" if checking else "Paused" }}</span>
       <div class="nav-links">
         {% set here = request.endpoint %}
         {% if user_email %}

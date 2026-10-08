@@ -3,7 +3,10 @@
 {% block main %}
 <div class="panel">
   <div class="panel-head">
-    <h1 class="t-h1">My Subscriptions</h1>
+    <div>
+      <h1 class="t-h1">Welcome, <span class="name-mark">{{ user_name }}</span></h1>
+      <h2 class="t-h2 mt-2">My Subscriptions</h2>
+    </div>
     {% if term %}<p class="small text-muted m-0">{{ term_name(term) }} · seats updated {{ updated }}</p>{% endif %}
   </div>
   <p class="small text-muted mb-4">{{ alert_status.rstrip(".") }}{% if subs %} · Watching {{ subs|length }} of {{ max_subs }} allowed this term{% endif %}</p>
@@ -11,8 +14,9 @@
   {% if not term %}
     <p class="text-muted m-0">No course data yet. The poller hasn't run.</p>
   {% elif not subs %}
-    <div class="py-5 measure">
-      <p class="t-h2 mb-2">You're not watching any sections yet.</p>
+    <div class="mascot-empty">
+      <img src="{{ url_for('static', filename='mascot.svg') }}" alt="">
+      <p class="t-h2">You're not watching any sections yet.</p>
       <p class="text-muted m-0">Search for a course, then flip the switch on a full section to get in line.</p>
     </div>
   {% else %}

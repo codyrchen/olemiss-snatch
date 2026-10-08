@@ -44,15 +44,15 @@
       {% if showcase %}
         <div class="preview-caption">
           <p class="t-label">Live from the class search · {{ term_name(term) }}</p>
-          <p class="small text-muted m-0">Updated {{ updated }}</p>
         </div>
-        <div class="panel">
+        <div class="panel has-mascot">
+          <img class="perched" src="{{ url_for('static', filename='mascot.svg') }}" alt="">
           <div class="panel-head">
             <div>
               <h2 class="t-h2">{{ showcase.subject }} {{ showcase.course_number }}</h2>
               <p class="cell-sub m-0">{{ showcase.title }}</p>
             </div>
-            <p class="small text-muted m-0">{{ showcase.full_sections }} full</p>
+            <p class="small text-muted m-0">{{ showcase.full_sections }} full · updated {{ updated }}</p>
           </div>
           <div class="table-scroll">
             <table class="data-table">
@@ -74,7 +74,8 @@
         </div>
       {% else %}
         <div class="preview-caption"><p class="t-label">What a course page looks like</p></div>
-        <div class="panel">
+        <div class="panel has-mascot">
+          <img class="perched" src="{{ url_for('static', filename='mascot.svg') }}" alt="">
           <div class="panel-head">
             <div>
               <h2 class="t-h2">MATH 1150</h2>

@@ -2,6 +2,7 @@
 {% block body %}
 <div class="wrap-narrow page">
   <div class="panel message">
+    <img class="message-mascot" src="{{ url_for('static', filename='mascot.svg') }}" alt="">
     <h1 class="t-h1">Check your email</h1>
     <p class="text-muted">We sent a sign-in link to <strong class="text-body">{{ email }}</strong>.
       It expires in 15 minutes. Check Junk if you don't see it.</p>

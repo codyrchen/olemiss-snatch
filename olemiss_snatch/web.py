@@ -59,7 +59,8 @@ def time_ago(iso: str | None) -> str:
         return f"{int(seconds // 60)} min ago"
     if seconds < 86400:
         return f"{int(seconds // 3600)} hr ago"
-    return f"{int(seconds // 86400)} days ago"
+    days = int(seconds // 86400)
+    return "1 day ago" if days == 1 else f"{days} days ago"
 
 
 def term_name(code: str) -> str:
@@ -140,7 +141,10 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     @app.context_processor
     def inject_user():
         email = session.get("email")
-        return {"user_email": email, "is_admin": bool(email) and email in admin_emails()}
+        st = schedule.status()
+        return {"user_email": email, "is_admin": bool(email) and email in admin_emails(),
+                "user_name": email.partition("@")[0] if email else None,
+                "checking": st.active, "checking_title": schedule.describe(st)}
 
     def admin_required(view):
         @wraps(view)

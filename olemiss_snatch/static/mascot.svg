@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="RebelSnatch squirrel">
+  <!-- bushy tail -->
+  <path d="M54 104 C26 104 8 86 10 62 C12 38 28 20 48 18 C64 16 74 30 66 42 C62 48 56 48 52 44 C50 56 50 68 54 80 C56 90 58 96 62 100 Z" fill="#9C6B45"/>
+  <path d="M50 42 C46 54 46 68 50 80 C52 88 54 92 56 96 C44 92 30 82 28 66 C26 50 36 38 50 36 Z" fill="#7E5434"/>
+  <ellipse cx="60" cy="60" rx="12" ry="24" fill="#9C6B45"/>
+  <!-- body -->
+  <ellipse cx="72" cy="82" rx="22" ry="24" fill="#9C6B45"/>
+  <ellipse cx="76" cy="86" rx="13" ry="16" fill="#FFF3E3"/>
+  <!-- feet -->
+  <ellipse cx="62" cy="104" rx="9" ry="4.5" fill="#7E5434"/>
+  <ellipse cx="88" cy="104" rx="9" ry="4.5" fill="#7E5434"/>
+  <!-- ears -->
+  <path d="M66 36 C62 26 64 16 70 14 C74 20 76 28 74 34 Z" fill="#9C6B45"/>
+  <path d="M68 32 C66 26 67 21 70 19 C72 23 72 28 71 31 Z" fill="#F7B4BD"/>
+  <path d="M88 34 C88 26 92 16 98 16 C100 22 98 30 94 36 Z" fill="#9C6B45"/>
+  <path d="M91 31 C91 26 93 21 96 20 C97 24 96 28 94 32 Z" fill="#F7B4BD"/>
+  <!-- head -->
+  <circle cx="81" cy="48" r="19" fill="#9C6B45"/>
+  <ellipse cx="81" cy="56" rx="10" ry="7.5" fill="#FFF3E3"/>
+  <!-- eyes -->
+  <circle cx="73" cy="46" r="4.5" fill="#171717"/>
+  <circle cx="74.6" cy="44.4" r="1.6" fill="#FFFFFF"/>
+  <circle cx="89" cy="46" r="4.5" fill="#171717"/>
+  <circle cx="90.6" cy="44.4" r="1.6" fill="#FFFFFF"/>
+  <!-- cheeks -->
+  <ellipse cx="66" cy="55" rx="4" ry="2.5" fill="#F7B4BD"/>
+  <ellipse cx="96" cy="55" rx="4" ry="2.5" fill="#F7B4BD"/>
+  <!-- nose and mouth -->
+  <ellipse cx="81" cy="53" rx="2.2" ry="1.6" fill="#171717"/>
+  <path d="M77 57 C78.5 59 80 59 81 57 C82 59 83.5 59 85 57" fill="none" stroke="#171717" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- acorn -->
+  <ellipse cx="81" cy="78" rx="6.5" ry="7.5" fill="#E3B47A"/>
+  <path d="M73 74 C73 68 77 66 81 66 C85 66 89 68 89 74 Z" fill="#14213D"/>
+  <path d="M81 66 L82 62" stroke="#14213D" stroke-width="2" stroke-linecap="round"/>
+  <!-- paws -->
+  <ellipse cx="73" cy="78" rx="4" ry="3.5" fill="#7E5434"/>
+  <ellipse cx="89" cy="78" rx="4" ry="3.5" fill="#7E5434"/>
+</svg>

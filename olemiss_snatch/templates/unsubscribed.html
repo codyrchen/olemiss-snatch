@@ -2,6 +2,7 @@
 {% block body %}
 <div class="wrap-narrow page">
   <div class="panel message">
+    <img class="message-mascot" src="{{ url_for('static', filename='mascot.svg') }}" alt="">
     {% set label = (sec.subject ~ " " ~ sec.course_number ~ "-" ~ sec.section) if sec else ("CRN " ~ crn) %}
     {% if done %}
       <h1 class="t-h1">Unsubscribed</h1>
