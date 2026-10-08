@@ -30,12 +30,16 @@ class GoogleAuthError(Exception):
     """Shown to the user, so messages should be friendly."""
 
 
-def client_id() -> str | None:
-    return os.environ.get("GOOGLE_CLIENT_ID")
+def client_id() -> str:
+    return os.environ.get("GOOGLE_CLIENT_ID", "").strip().strip('"')
+
+
+def client_secret() -> str:
+    return os.environ.get("GOOGLE_CLIENT_SECRET", "").strip().strip('"')
 
 
 def configured() -> bool:
-    return bool(client_id() and os.environ.get("GOOGLE_CLIENT_SECRET"))
+    return bool(client_id() and client_secret())
 
 
 def authorization_url(redirect_uri: str, hosted_domain: str) -> tuple[str, str, str]:
@@ -68,7 +72,7 @@ def verified_email(code: str, redirect_uri: str, nonce: str, allowed_domains: li
     r = requests.post(TOKEN_URL, data={
         "code": code,
         "client_id": client_id(),
-        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+        "client_secret": client_secret(),
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }, timeout=15)
