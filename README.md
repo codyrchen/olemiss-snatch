@@ -1,202 +1,151 @@
-# olemiss-snatch
+# RebelSnatch
 
-[RebelSnatch](https://rebelsnatch.com) helps Ole Miss students get notified when a seat opens in a full class. 
+**[rebelsnatch.com](https://rebelsnatch.com)** helps Ole Miss students get into full classes. It does two things:
 
-It reads public seat counts from Ole Miss's Banner class search (the same data as "Browse Classes"). It never logs in as a student and never registers anyone. It only watches and alerts.
+- **Seat alerts.** You get an email (and optionally a text) when a seat opens in a full section, for the cases where the official waitlist can't help.
+- **Trades.** It finds a student who wants your section and has the one you want, so you can swap.
 
-## Setup
+It's inspired by Princeton's [TigerSnatch](https://github.com/TigerAppsOrg/TigerSnatch). It reads the same public seat counts as Banner's "Browse Classes", never logs in as a student and never registers anyone. It only watches and tells you.
+
+![Landing page](docs/screenshots/landing.png)
+
+## Screenshots
+
+**Dashboard.** Your place in line for every section you're watching, your trade matches, and where alerts go.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Course page.** Live seats for every section. Full sections without a waitlist get an alert switch. Sections with an open official waitlist link to Experience instead. Join Trades to mark your section and the ones you'd swap for.
+
+![Course page with Trades](docs/screenshots/course.png)
+
+**Stats.** Public totals, the most-watched sections and recent seat openings. No one's email is ever shown.
+
+![Stats](docs/screenshots/stats.png)
+
+**On a phone.**
+
+![Landing, dashboard and course page on a phone](docs/screenshots/phone.png)
+
+## How it works
+
+1. **The poller** (`olemiss_snatch/poll.py`) walks Banner 9's public class search for each term, one subject at a time with a polite 1-second delay. It saves every section's seats and waitlist counts to SQLite and records each time a full section opens.
+2. **Alerts** (`notify.py`) go to the people watching that section, in the order they subscribed, three per open seat. A section with students on its official waitlist is skipped, because that seat goes to the waitlist first. Each email carries the CRN, a link to Experience and a one-click unsubscribe link.
+3. **Trades** (`trades.py`) match pairs: A is in section X and wants Y, and B is in Y and wants X, within the same course. Both students get one email with each other's address and safe swap steps. Addresses are shown only to matched students.
+4. **The website** (`web.py`, Flask) handles sign-in with an Ole Miss Google account or an emailed one-time link, live course search, subscription switches, Trades, settings, `/stats` and `/admin`.
+
+## Features
+
+- **Waitlist-aware.** Sections with an active official waitlist send you to join it in Experience, where Ole Miss holds the seat for you. Alerts cover sections without a waitlist and add/drop week after waitlists close.
+- **Sign-in:** an Ole Miss Google account only (`hd` and domain checked), or a one-time email link. No passwords are stored.
+- **Personal alert email**, confirmed from that inbox first, for when Ole Miss mail filters new senders.
+- **Text alerts** through Twilio, opt-in, with STOP honored.
+- **Fair limits:** a maximum number of sections per student per term, and a rate limit on sign-in links.
+- **Alert windows:** seat checks run only during registration and add/drop if you set `POLL_WINDOWS`. The nav shows "Checking seats" or "Paused".
+- **Admin tools:** totals, the most-watched sections, blocking a student, and clearing a section's subscriptions.
+
+## Run it locally
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-```
+cp .env.example .env            # then fill in SECRET_KEY at least
 
-## Usage
-
-```bash
-# see term codes
-python -m olemiss_snatch.poll --list-terms
-
-# one pass over a few subjects
-python -m olemiss_snatch.poll --term 202710 --subjects MATH CSCI
-
-# every subject in the term, repeating every 5 minutes
+# terminal 1: fill the database (see term codes with --list-terms)
 python -m olemiss_snatch.poll --term 202710 --every 300
-```
 
-The first run only records the current counts. Later runs print a line like the one below for each section that went from full to open:
-
-```
-  OPENED  10343  MATH 1150-007  Elementary Statistics  (0 -> 2 of 49)
-```
-
-Data goes into `snatch.db` (SQLite). There are two tables: `sections` holds the latest counts and `openings` holds the history of seat openings.
-
-## Email alerts
-
-### 1. Set up sending (Gmail)
-
-1. Turn on 2-Step Verification for the Gmail account at https://myaccount.google.com/security.
-2. Create an App Password at https://myaccount.google.com/apppasswords. Name it `olemiss-snatch` and copy the 16-character password.
-3. Copy the example settings file and fill it in:
-   ```bash
-   cp .env.example .env
-   open -e .env
-   ```
-4. Send yourself a test email:
-   ```bash
-   python -m olemiss_snatch.poll --test-email you@go.olemiss.edu
-   ```
-
-Without a `.env` file, alerts are printed in the terminal instead of being emailed.
-
-### 2. Subscribe to sections
-
-Run the poller once for the term first, so the CRNs are in the database. Then:
-
-```bash
-python -m olemiss_snatch.subscribe add you@go.olemiss.edu 10343 --term 202710
-python -m olemiss_snatch.subscribe list
-python -m olemiss_snatch.subscribe remove you@go.olemiss.edu 10343 --term 202710
-```
-
-When a watched section goes from full to open, the poller emails subscribers in the order they subscribed. It sends to 3 people per open seat, so 1 seat means the first 3 in line get the email. The same opening never emails anyone twice.
-
-### 3. Test an alert without waiting for registration
-
-Pretend a section you're subscribed to is full, then poll its subject again:
-
-```bash
-sqlite3 snatch.db "UPDATE sections SET seats_available = 0 WHERE crn = '10343'"
-python -m olemiss_snatch.poll --term 202710 --subjects MATH
-```
-
-If the real section has open seats, this looks like an opening and you'll get the email.
-
-## Website
-
-A TigerSnatch-style site where students:
-- sign in with an Ole Miss email using a one-time link (no passwords)
-- search courses by code, title or instructor
-- flip a switch on a full section to get in line
-- see their place in line on the dashboard
-
-Every alert email includes a one-click unsubscribe link.
-
-### Run it locally
-
-```bash
-pip install -r requirements.txt
-python -c "import secrets; print(secrets.token_hex(32))"   # paste into .env as SECRET_KEY
+# terminal 2: the website
 python -m flask --app olemiss_snatch.web run --debug
 ```
 
-Open http://127.0.0.1:5000. (On a Mac, `localhost:5000` can hit AirPlay Receiver and show 403 Forbidden.) Keep the poller running in another Terminal tab so seat counts stay fresh. Both use the same `snatch.db`.
+Open http://127.0.0.1:5000. On a Mac, `localhost:5000` can hit AirPlay Receiver and return 403. Without email settings, sign-in links and alerts are printed in the terminal instead of being sent.
 
-Without SMTP settings, the sign-in link is printed in the Terminal running Flask instead of being emailed.
+Other poller commands:
 
-## Deploy (Railway + Resend + your domain)
+```bash
+python -m olemiss_snatch.poll --list-terms                     # term codes
+python -m olemiss_snatch.poll --term 202710 --subjects MATH CSCI   # one pass, a few subjects
+python -m olemiss_snatch.poll --test-email you@go.olemiss.edu  # check email sending
+```
 
-Costs: Railway Hobby about $5/month (it starts with a free trial), a domain about $10/year, and Resend free (3,000 emails/month).
+## Deploy (Railway + Resend + a domain)
 
-Railway's Hobby plan blocks SMTP, so on the server the app sends email through Resend's API instead of Gmail. Locally, Gmail SMTP keeps working.
+**Cost:** Railway Hobby is about $5/month, a domain about $10/year, and Resend's free tier covers 3,000 emails/month. Railway blocks SMTP, so on the server the app sends email through Resend's API.
 
-### 1. Buy a domain
+1. **Domain.** Buy one, for example at Cloudflare Registrar.
+2. **Resend.** Add the domain, copy the DNS records it shows into your DNS provider, click Verify, and create an API key (`re_...`).
+3. **Railway.**
+   - Create a new project from this GitHub repo.
+   - Attach a **volume** at `/data`.
+   - Add the variables below.
 
-Buy one at [Cloudflare Registrar](https://dash.cloudflare.com) (sold at cost, and its DNS works well with Railway). Example: `rebelsnatch.com`.
+   `railway.json` runs `start.sh`, which starts the poller in the background and gunicorn in front, and health-checks `/healthz`.
+4. **Custom domain.** In Railway, go to Settings → Networking → Custom Domain. Add the CNAME it gives you, set to DNS only. Railway issues HTTPS automatically.
+5. **Google sign-in.**
+   - In Google Cloud Console, set up the OAuth consent screen: External, with scopes `openid` and `email`, then publish it.
+   - Create a Web OAuth client with redirect URI `https://<your-domain>/auth/google/callback`.
 
-### 2. Set up Resend
+**Minimum variables:**
 
-1. Sign up at https://resend.com, go to **Domains → Add Domain** and enter your domain.
-2. Resend shows a few DNS records (TXT and MX). In Cloudflare, go to **your domain → DNS → Records** and add each one exactly as shown.
-3. Back in Resend, click **Verify**. It can take a few minutes.
-4. Go to **API Keys → Create API Key** (sending access) and copy the key, which starts with `re_`.
+```
+SECRET_KEY=<python -c "import secrets; print(secrets.token_hex(32))">
+BASE_URL=https://rebelsnatch.com
+RESEND_API_KEY=re_...
+MAIL_FROM=RebelSnatch <alerts@rebelsnatch.com>
+SNATCH_DB=/data/snatch.db
+SNATCH_TERMS=202730 202710
+POLL_EVERY=300
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+```
 
-### 3. Create the Railway service
-
-1. Sign up at https://railway.com with GitHub.
-2. Click **New Project → Deploy from GitHub repo** and pick `olemiss-snatch`. Give Railway access to the repo if it asks.
-3. Add a **volume** so the database survives redeploys: on the project canvas, right-click (or press `Cmd + K`), choose **Volume**, attach it to the service, and set the mount path to `/data`.
-4. Open the service's **Variables** tab, then **Raw Editor**, and paste the following, filling in your values:
-   ```
-   SECRET_KEY=<run: python -c "import secrets; print(secrets.token_hex(32))">
-   BASE_URL=https://rebelsnatch.com
-   RESEND_API_KEY=re_...
-   MAIL_FROM=RebelSnatch <alerts@rebelsnatch.com>
-   SNATCH_DB=/data/snatch.db
-   SNATCH_TERMS=202730 202710
-   POLL_EVERY=300
-   ```
-5. Railway redeploys. `railway.json` tells it to run `start.sh`, which starts the poller and the website. It also tells Railway to health-check `/healthz`.
-
-### 4. Point your domain at Railway
-
-1. In the service, go to **Settings → Networking → Custom Domain** and enter `rebelsnatch.com`.
-2. Railway shows a **CNAME** record (and sometimes a TXT record). Add it in Cloudflare DNS with the proxy set to **DNS only** (grey cloud).
-3. Wait for Railway to show the domain as active. It issues the HTTPS certificate automatically.
-
-### 5. Check it
-
-- **Deploy logs:** after a few minutes you should see `checked 8xxx sections in 1xx subjects` for each term.
-- **Sign in:** open https://rebelsnatch.com and sign in with your Ole Miss email. That also tests that Resend is sending.
-- **Changing terms:** when registration moves to a new term, edit `SNATCH_TERMS`. Railway restarts the service with the new value.
-
-## Waitlists and Trades
-
-**Official waitlists come first.** Ole Miss's Experience/Banner waitlist holds a seat for the next student.
-- Sections with an active waitlist (`waitCapacity > 0` and open spots or people on it) show **"Waitlist N/M · join in Experience"** instead of an alert switch.
-- Alerts are never sent for sections that have people on the official waitlist.
-- How Banner reports these fields after waitlists close (the week before classes) is unconfirmed. The rule lives in one function, `banner.has_active_waitlist`.
-
-**Trades.** On a course page, a student picks the section they're in ("Join Trades") and checks **Trade** on full sections they'd switch to.
-- When two students each want the other's section, both get an email with the partner's address and swap steps.
-- The match also appears on both dashboards.
-- Emails are shown only to matched students, and only while both are "Open to trades".
-
-## Sign in with Google
-
-Ole Miss mail can quarantine emails from new domains, so students can sign in with their **@go.olemiss.edu Google account** instead of an emailed link.
-- The app only accepts accounts whose Google Workspace domain (`hd`) and email are in `ALLOWED_EMAIL_DOMAINS`, so personal Gmail accounts are rejected.
-- Students can also send alerts to a **personal email**. They confirm it from that inbox first, on the dashboard under "Where alerts go".
-
-Setup (about 10 minutes):
-1. Go to https://console.cloud.google.com, create a project called `RebelSnatch`, and open **APIs & Services**.
-2. Open **OAuth consent screen**:
-   - choose **External**
-   - app name `RebelSnatch`, with your email as the support and developer contact
-   - scopes: just `openid` and `email`
-   - **Publish app** (set to "In production"). Basic sign-in needs no Google review.
-3. Go to **Credentials → Create credentials → OAuth client ID → Web application**.
-   - Authorized redirect URI: `https://rebelsnatch.com/auth/google/callback`
-4. Copy the client ID and secret into Railway as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-
-If Ole Miss blocks third-party apps for student accounts, Google shows an "access blocked" page. Then ask IT to allow the app.
-
-## Limits, schedule, stats, admin and texts
-
-All of these are set as Railway **Variables**:
+**Optional variables:**
 
 | Variable | What it does | Example |
 |---|---|---|
-| `MAX_SUBSCRIPTIONS` | Max sections one student can watch per term (default 15) | `15` |
-| `POLL_WINDOWS` | Only check seats in these windows, Central time, `;`-separated. Unset = always | `2026-11-02 07:00 to 2026-11-20 23:59; 2027-01-12 06:00 to 2027-01-26 23:59` |
-| `ADMIN_EMAILS` | Who can open `/admin` (stats, block students, clear a section) | `you@go.olemiss.edu` |
-| `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM` | Turn on text alerts. Students add a phone number on the dashboard | from twilio.com |
+| `POLL_WINDOWS` | Only check seats in these windows (Central time, `;`-separated). Unset means always | `2026-10-26 00:00 to 2027-02-01 23:59` |
+| `MAX_SUBSCRIPTIONS` | Sections one student can watch per term (default 15) | `15` |
+| `ADMIN_EMAILS` | Who can open `/admin` | `you@go.olemiss.edu` |
+| `ALLOWED_EMAIL_DOMAINS` | Who may sign in | `go.olemiss.edu,olemiss.edu` |
+| `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM` | Turn on text alerts. US texting needs a verified toll-free number or A2P 10DLC registration | from twilio.com |
 
-- `/stats` is public and shows only totals and counts, never anyone's email.
-- `/admin` shows everything and lets you block a student. Blocking signs them out, removes their subscriptions and trades, and stops future sign-ins.
-- **Twilio note:** texting US numbers needs a verified toll-free number or A2P 10DLC registration in Twilio. Approval can take a few days, so start early.
+`.env.example` documents every setting. When registration moves to a new term, update `SNATCH_TERMS`.
 
 ## Notes on the data
 
-- Term codes look like `YYYYTT`: `10` is Fall, `20` is Winter, `30` is Spring and `50` is Summer. For example, `202730` is Spring 2027.
-- `seatsAvailable` can be negative when a section is over-enrolled through overrides. Any value at or below 0 counts as full.
-- `maximumEnrollment` of 0 usually means the section is cancelled or closed to normal registration. Those sections never trigger alerts.
-- Requests are spaced `--delay` seconds apart (default 1s). Keep it polite.
+- **Term codes** look like `YYYYTT`, where `10` is Fall, `20` Winter, `30` Spring and `50` Summer. Banner names the academic year by its spring, so `202710` is Fall 2026 and `202730` is Spring 2027.
+- **`seatsAvailable`** can go negative through overrides. Anything at or below 0 counts as full.
+- **`maximumEnrollment` of 0** usually means the section is cancelled or closed. It never triggers alerts.
+- **Waitlist fields after waitlists close:** how Banner reports them then is unconfirmed. The rule lives in one function, `banner.has_active_waitlist`.
+
+## Project layout
+
+```
+olemiss_snatch/
+  banner.py        Banner 9 class search client and section parsing
+  poll.py          the poller loop (terms, windows, retries)
+  db.py            SQLite schema and queries
+  notify.py        email (Resend/SMTP) and Twilio texts
+  trades.py        trade matching and match emails
+  google_auth.py   Ole Miss Google sign-in (OIDC)
+  schedule.py      POLL_WINDOWS parsing
+  web.py           Flask site and JSON API
+  templates/, static/
+tests/             pytest suite
+DESIGN.md          the design system: colors, type, spacing, mascot rules
+```
+
+## Design
+
+The UI follows [`DESIGN.md`](DESIGN.md). The colors are navy, with red reserved for full sections, and Ole Miss powder blue is the one pop of color. Type is Urbanist on a strict 8px grid, with no decoration beyond the campus squirrel.
 
 ## Tests
 
 ```bash
 python -m pytest -q
 ```
+
+---
+
+RebelSnatch is a student project and isn't affiliated with the University of Mississippi.
