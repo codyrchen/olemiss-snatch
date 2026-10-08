@@ -5,7 +5,7 @@
 - **Seat alerts.** You get an email (and optionally a text) when a seat opens in a full section, for the cases where the official waitlist can't help.
 - **Trades.** It finds a student who wants your section and has the one you want, so you can swap.
 
-It's inspired by Princeton's [TigerSnatch](https://github.com/TigerAppsOrg/TigerSnatch). It reads the same public seat counts as Banner's "Browse Classes", never logs in as a student and never registers anyone. It only watches and tells you.
+It reads the same public seat counts as Banner's "Browse Classes", never logs in as a student and never registers anyone. It only watches and tells you.
 
 ![Landing page](docs/screenshots/landing.png)
 
