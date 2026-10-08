@@ -27,7 +27,7 @@
         {% if user_email %}
           <span class="nav-user d-none d-lg-inline">{{ user_email }}</span>
           <form method="post" action="{{ url_for('logout') }}" class="m-0">
-            <button>Log out</button>
+            <button class="logout">Log out</button>
           </form>
         {% endif %}
       </div>

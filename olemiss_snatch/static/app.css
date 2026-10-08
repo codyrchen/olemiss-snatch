@@ -12,6 +12,8 @@
   --muted: #6B6B6B;
   --fill: #F2F2F2;
   --powder: #E7EEF8;   /* Ole Miss powder blue, as a soft tint */
+  --sky: #8BB8E8;      /* Ole Miss powder blue (Pantone 278): the one pop of color */
+  --sky-tint: #D9E7F7; /* the nav bar */
   --blush: #F7B4BD;    /* mascot cheeks only */
 
   --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s6: 48px; --s8: 64px; --s12: 96px;
@@ -69,17 +71,19 @@ a:hover { color: var(--navy-hover); }
 .wrap-narrow { width: 100%; max-width: 640px; margin: 0 auto; padding: 0 var(--s3); }
 .page { padding-top: var(--s6); padding-bottom: var(--s8); }
 
-.site-nav { background: var(--white); border-bottom: 1px solid var(--line); }
+.site-nav { background: var(--sky-tint); border-bottom: 1px solid var(--sky); }
 .site-nav .wrap { display: flex; align-items: center; gap: var(--s3); height: 64px; }
 .wordmark { font-size: var(--fs-h2); font-weight: 700; color: var(--navy); text-decoration: none;
             letter-spacing: -.01em; display: inline-flex; align-items: center; gap: var(--s1); }
 .wordmark img { width: 36px; height: 36px; }
 .wordmark:hover { color: var(--navy); }
 .nav-links { display: flex; align-items: center; gap: var(--s3); margin-left: auto; }
-.nav-links a, .nav-links button { font-size: var(--fs-small); font-weight: 500; color: var(--muted);
+.nav-links a, .nav-links button { font-size: var(--fs-small); font-weight: 500; color: var(--navy);
   text-decoration: none; background: none; border: 0; padding: 0; line-height: var(--lh-body); }
-.nav-links a:hover, .nav-links button:hover, .nav-links a.active { color: var(--navy); }
-.nav-user { font-size: var(--fs-small); color: var(--muted); }
+.nav-links a:hover, .nav-links a.active { color: var(--navy); font-weight: 700; }
+.nav-links .logout { background: var(--sky); border-radius: 999px; height: 32px; padding: 0 var(--s2); font-weight: 600; }
+.nav-links .logout:hover { background: var(--navy); color: var(--white); }
+.nav-user { font-size: var(--fs-small); color: var(--navy); opacity: .7; }
 
 .site-footer { margin-top: auto; border-top: 1px solid var(--line); padding: var(--s4) 0;
                font-size: var(--fs-small); color: var(--muted); }
@@ -256,10 +260,10 @@ details summary { cursor: pointer; }
 
 /* ---------- personality: the mascot and powder-blue touches (DESIGN.md "Personality") ---------- */
 .status-chip { display: inline-flex; align-items: center; gap: var(--s1); height: 24px; padding: 0 var(--s1);
-               border-radius: 999px; background: var(--powder); color: var(--navy);
+               border-radius: 999px; background: var(--sky); color: var(--navy);
                font-size: var(--fs-label); font-weight: 600; white-space: nowrap; }
 .status-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--navy); }
-.status-chip.paused { background: var(--fill); color: var(--muted); }
+.status-chip.paused { background: var(--white); color: var(--muted); }
 .status-chip.paused .dot { background: var(--muted); }
 
 .search-col { background: var(--powder); border-radius: var(--radius-lg); padding: var(--s2); }
@@ -268,7 +272,7 @@ details summary { cursor: pointer; }
 .search-results .result.active { border-color: transparent; }
 .search-mascot { display: block; width: 128px; margin: var(--s3) auto var(--s1); }
 
-.name-mark { background: var(--powder); color: var(--navy); border-radius: var(--radius); padding: 0 var(--s1); }
+.name-mark { background: var(--sky); color: var(--navy); border-radius: var(--radius); padding: 0 var(--s1); }
 
 .mascot-empty { text-align: center; padding: var(--s6) var(--s2); }
 .mascot-empty img { width: 120px; margin-bottom: var(--s2); }
