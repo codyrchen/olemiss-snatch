@@ -1,14 +1,12 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="container py-5" style="max-width: 560px">
-  <div class="card snatch-card text-center">
-    <div class="card-body p-5">
-      <h2 class="h4 fw-bold mb-2">Send alerts to {{ addr }}?</h2>
-      <p class="text-muted small mb-4">Seat and trade alerts from {{ SITE_NAME }} will go to this address.</p>
-      <form method="post">
-        <button class="btn btn-snatch btn-lg px-5">Confirm</button>
-      </form>
-    </div>
+<div class="wrap-narrow page">
+  <div class="panel message">
+    <h1 class="t-h1">Send alerts to {{ addr }}?</h1>
+    <p class="text-muted">Seat and trade alerts from {{ SITE_NAME }} will go to this address.</p>
+    <form method="post">
+      <button class="btn btn-primary-ink btn-lg-cta">Confirm</button>
+    </form>
   </div>
 </div>
 {% endblock %}

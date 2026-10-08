@@ -339,6 +339,21 @@ def course_sections(conn: sqlite3.Connection, term: str, subject: str, course_nu
     ).fetchall()
 
 
+def showcase_course(conn: sqlite3.Connection, term: str):
+    """A real course to preview on the landing page: most watched, else most full sections."""
+    return conn.execute(
+        "SELECT sec.subject, sec.course_number, MIN(sec.title) AS title,"
+        " SUM(sec.max_enrollment > 0 AND sec.seats_available <= 0) AS full_sections,"
+        " (SELECT COUNT(*) FROM subscriptions s JOIN sections x ON x.term = s.term AND x.crn = s.crn"
+        "  WHERE x.term = sec.term AND x.subject = sec.subject"
+        "  AND x.course_number = sec.course_number) AS watchers"
+        " FROM sections sec WHERE sec.term = ?"
+        " GROUP BY sec.subject, sec.course_number HAVING COUNT(*) >= 3 AND full_sections > 0"
+        " ORDER BY watchers DESC, full_sections DESC, sec.subject, sec.course_number LIMIT 1",
+        (term,),
+    ).fetchone()
+
+
 def subscription_position(conn: sqlite3.Connection, email: str, term: str, crn: str) -> int | None:
     row = conn.execute(
         "SELECT (SELECT COUNT(*) FROM subscriptions s2"

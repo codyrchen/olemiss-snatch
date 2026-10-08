@@ -1,143 +1,127 @@
 {% extends "_app_layout.html" %}
 {% block title %}Dashboard · {{ SITE_NAME }}{% endblock %}
 {% block main %}
-<div class="card snatch-card">
-  <div class="card-body">
-    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
-      <h2 class="h4 fw-bold mb-0">My Subscriptions</h2>
-      {% if term %}
-        <span class="small text-muted">{{ term_name(term) }} · seats updated {{ updated }}</span>
-      {% endif %}
+<div class="panel">
+  <div class="panel-head">
+    <h1 class="t-h1">My Subscriptions</h1>
+    {% if term %}<p class="small text-muted m-0">{{ term_name(term) }} · seats updated {{ updated }}</p>{% endif %}
+  </div>
+  <p class="small text-muted mb-4">{{ alert_status.rstrip(".") }}{% if subs %} · Watching {{ subs|length }} of {{ max_subs }} allowed this term{% endif %}</p>
+
+  {% if not term %}
+    <p class="text-muted m-0">No course data yet. The poller hasn't run.</p>
+  {% elif not subs %}
+    <div class="py-5 measure">
+      <p class="t-h2 mb-2">You're not watching any sections yet.</p>
+      <p class="text-muted m-0">Search for a course, then flip the switch on a full section to get in line.</p>
     </div>
-    <div class="alert-status small mb-3"><i class="bi bi-clock me-1"></i>{{ alert_status.rstrip(".") }}
-      {% if subs %}· Watching {{ subs|length }} (limit {{ max_subs }} per term){% endif %}</div>
-
-    {% if not term %}
-      <p class="text-muted mb-0">No course data yet. The poller hasn't run.</p>
-    {% elif not subs %}
-      <div class="empty-state text-center py-5">
-        <div class="step-icon mx-auto mb-3"><i class="bi bi-bell"></i></div>
-        <p class="fw-semibold mb-1">You're not watching any sections yet.</p>
-        <p class="text-muted small mb-0">Search for a course on the left, then flip the switch on a full section.</p>
-      </div>
-    {% else %}
-      <div class="table-responsive">
-        <table class="table align-middle snatch-table mb-0">
-          <thead>
-            <tr>
-              <th>Course</th><th class="d-none d-sm-table-cell">Section</th><th class="d-none d-md-table-cell">Time</th>
-              <th>Seats</th><th>Spot</th><th class="text-end"><span class="d-none d-sm-inline">Subscribed</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in subs %}
-            <tr data-row-crn="{{ s.crn }}">
-              <td>
-                <a class="fw-semibold course-link"
-                   href="{{ url_for('course', term=s.term, subject=s.subject, course_number=s.course_number) }}">
-                  {{ s.subject }} {{ s.course_number }}<span class="d-sm-none">-{{ s.section }}</span></a>
-                <div class="small text-muted text-truncate" style="max-width: 16rem">{{ s.title }}</div>
-                {% if multi_term %}<span class="badge rounded-pill term-badge">{{ term_name(s.term) }}</span>{% endif %}
-                {% if has_active_waitlist(s.wait_capacity or 0, s.wait_available or 0, s.wait_count or 0) %}
-                  <div class="small"><a class="waitlist-link text-decoration-none" href="{{ REGISTRATION_URL }}"
-                     target="_blank" rel="noopener">Has an official waitlist now · join it in Experience</a></div>
-                {% endif %}
-              </td>
-              <td class="d-none d-sm-table-cell">{{ s.section }}<div class="small text-muted">CRN {{ s.crn }}</div></td>
-              <td class="small text-muted d-none d-md-table-cell">{{ s.meetings or "TBA" }}</td>
-              <td>
-                {% if s.max_enrollment and s.seats_available > 0 %}
-                  <span class="seat-pill open">{{ s.seats_available }} / {{ s.max_enrollment }}</span>
-                {% else %}
-                  <span class="seat-pill full">{{ [s.seats_available, 0]|max }} / {{ s.max_enrollment }}</span>
-                {% endif %}
-              </td>
-              <td><span class="position-badge">#{{ s.position }}</span>
-                  <span class="small text-muted d-none d-sm-inline">of {{ s.watchers }}</span></td>
-              <td class="text-end">
-                <div class="form-check form-switch d-inline-block m-0">
-                  <input class="form-check-input snatch-switch" type="checkbox" role="switch" checked
-                         data-term="{{ s.term }}" data-crn="{{ s.crn }}" data-remove-row="1"
-                         aria-label="Subscribed to CRN {{ s.crn }}">
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <p class="small text-muted mt-3 mb-0">
-        When a section opens, the first few people in line get an email with the CRN.
-        Register in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a> right away.
-      </p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="card snatch-card mt-3">
-  <div class="card-body">
-    <h2 class="h5 fw-bold mb-1"><i class="bi bi-envelope me-1"></i> Where alerts go</h2>
-    <p class="small text-muted mb-2">
-      {% if alert_email %}Alerts go to <strong>{{ alert_email }}</strong>.
-      {% else %}Alerts go to <strong>{{ user_email }}</strong>.{% endif %}
-      Not seeing our emails in your Ole Miss inbox? Add a personal email. We'll send it a confirmation link first.
+  {% else %}
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Course</th><th class="d-none d-sm-table-cell">Section</th><th class="d-none d-md-table-cell">Time</th>
+            <th>Seats</th><th>Spot</th><th class="end"><span class="d-none d-sm-inline">Alert</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subs %}
+          <tr data-row-crn="{{ s.crn }}">
+            <td>
+              <a class="course-link"
+                 href="{{ url_for('course', term=s.term, subject=s.subject, course_number=s.course_number) }}">
+                {{ s.subject }} {{ s.course_number }}<span class="d-sm-none">-{{ s.section }}</span></a>
+              <div class="cell-sub truncate">{{ s.title }}{% if multi_term %} · {{ term_name(s.term) }}{% endif %}</div>
+              {% if has_active_waitlist(s.wait_capacity or 0, s.wait_available or 0, s.wait_count or 0) %}
+                <div class="cell-sub"><a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Has an official waitlist now · join it in Experience ↗</a></div>
+              {% endif %}
+            </td>
+            <td class="d-none d-sm-table-cell">{{ s.section }}<div class="cell-sub">CRN {{ s.crn }}</div></td>
+            <td class="text-muted d-none d-md-table-cell">{{ s.meetings or "TBA" }}</td>
+            <td>
+              {% if s.max_enrollment and s.seats_available > 0 %}
+                <span class="seat open">{{ s.seats_available }} / {{ s.max_enrollment }}</span>
+              {% else %}
+                <span class="seat full">{{ [s.seats_available, 0]|max }} / {{ s.max_enrollment }}</span>
+              {% endif %}
+            </td>
+            <td><span class="position">#{{ s.position }}</span>
+                <span class="cell-sub d-none d-sm-inline">of {{ s.watchers }}</span></td>
+            <td class="end">
+              <div class="form-check form-switch d-inline-block m-0 p-0">
+                <input class="form-check-input m-0 snatch-switch" type="checkbox" role="switch" checked
+                       data-term="{{ s.term }}" data-crn="{{ s.crn }}" data-remove-row="1"
+                       aria-label="Subscribed to CRN {{ s.crn }}">
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-muted mt-3 mb-0 measure">
+      When a section opens, the first few people in line get an email with the CRN.
+      Register in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a> right away.
     </p>
-    <form class="d-flex flex-wrap gap-2" id="alert-email-form" onsubmit="return false">
-      <input class="form-control form-control-sm w-auto" id="alert-email-input" type="email"
-             placeholder="you@gmail.com" value="{{ alert_email or '' }}" aria-label="Personal email for alerts">
-      <button class="btn btn-sm btn-snatch" id="alert-email-save">Send confirmation</button>
-      {% if alert_email %}<button class="btn btn-sm btn-outline-secondary" id="alert-email-remove">Use my Ole Miss email</button>{% endif %}
-    </form>
-  </div>
-</div>
+  {% endif %}
 
-{% if sms_enabled %}
-<div class="card snatch-card mt-3">
-  <div class="card-body">
-    <h2 class="h5 fw-bold mb-1"><i class="bi bi-phone me-1"></i> Text alerts</h2>
-    <p class="small text-muted">Seats go fast. Add your number to get a text along with the email.
-      Standard message rates apply; reply STOP to any text to opt out.</p>
-    <form class="d-flex flex-wrap gap-2" id="phone-form" onsubmit="return false">
-      <input class="form-control form-control-sm w-auto" id="phone-input" type="tel" inputmode="tel"
-             placeholder="(662) 555-0123" value="{{ phone or '' }}" aria-label="Phone number">
-      <button class="btn btn-sm btn-snatch" id="phone-save">Save</button>
-      {% if phone %}<button class="btn btn-sm btn-outline-secondary" id="phone-remove">Remove</button>{% endif %}
-    </form>
-  </div>
-</div>
-{% endif %}
-
-<div class="card snatch-card mt-3">
-  <div class="card-body">
-    <h2 class="h5 fw-bold mb-3"><i class="bi bi-arrow-left-right me-1"></i> Trades</h2>
+  <div class="section-gap" id="trades">
+    <h2 class="t-h2 mb-3">Trades</h2>
     {% if not matches %}
-      <p class="small text-muted mb-0">No trade matches yet. On a course page, pick the section you're in and
+      <p class="small text-muted m-0 measure">No trade matches yet. On a course page, pick the section you're in and
         check the sections you'd trade for. We'll email you when someone wants to swap.</p>
     {% else %}
       {% for m in matches %}
-        <div class="trade-match">
-          <div class="d-flex flex-wrap justify-content-between gap-2">
-            <div>
-              <a class="fw-semibold course-link" href="{{ url_for('course', term=m.term, subject=m.subject, course_number=m.course_number) }}#trades">
-                {{ m.subject }} {{ m.course_number }}</a>
-              <span class="small text-muted">{{ m.title }}</span>
-              <div>Give <strong>{{ m.my_section }}</strong> (CRN {{ m.my_crn }}) → get
-                <strong>{{ m.their_section }}</strong> (CRN {{ m.their_crn }})</div>
-            </div>
-            <div class="d-flex gap-2 align-items-start">
-              <a class="btn btn-sm btn-snatch"
-                 href="mailto:{{ m.partner }}?subject={{ ('RebelSnatch trade: ' ~ m.subject ~ ' ' ~ m.course_number) | urlencode }}">
-                Email {{ m.partner }}</a>
-              <button class="btn btn-sm btn-outline-secondary leave-trades-btn" data-term="{{ m.term }}"
-                      data-subject="{{ m.subject }}" data-number="{{ m.course_number }}">Done</button>
-            </div>
+        <div class="match">
+          <div>
+            <a class="course-link" href="{{ url_for('course', term=m.term, subject=m.subject, course_number=m.course_number) }}#trades">
+              {{ m.subject }} {{ m.course_number }}</a>
+            <span class="cell-sub">{{ m.title }}</span>
+            <div class="small">Give <strong>{{ m.my_section }}</strong> (CRN {{ m.my_crn }}) → get
+              <strong>{{ m.their_section }}</strong> (CRN {{ m.their_crn }})</div>
+          </div>
+          <div class="field-row">
+            <a class="btn btn-primary-ink"
+               href="mailto:{{ m.partner }}?subject={{ ('RebelSnatch trade: ' ~ m.subject ~ ' ' ~ m.course_number) | urlencode }}">
+              Email {{ m.partner }}</a>
+            <button class="btn btn-quiet leave-trades-btn" data-term="{{ m.term }}"
+                    data-subject="{{ m.subject }}" data-number="{{ m.course_number }}">Done</button>
           </div>
         </div>
       {% endfor %}
-      <details class="small text-muted mt-2">
+      <details class="small text-muted mt-3">
         <summary>How to swap safely</summary>
         <pre class="swap-steps">{{ swap_steps }}</pre>
       </details>
+    {% endif %}
+  </div>
+
+  <div class="section-gap settings">
+    <div>
+      <h2 class="t-h2">Where alerts go</h2>
+      <p class="small text-muted">
+        Alerts go to <strong class="text-body">{{ alert_email or user_email }}</strong>.
+        Not seeing our emails in your Ole Miss inbox? Add a personal email. We'll send it a confirmation link first.
+      </p>
+      <form class="field-row" id="alert-email-form" onsubmit="return false">
+        <input class="form-control" id="alert-email-input" type="email"
+               placeholder="you@gmail.com" value="{{ alert_email or '' }}" aria-label="Personal email for alerts">
+        <button class="btn btn-quiet" id="alert-email-save">Send confirmation</button>
+        {% if alert_email %}<button class="btn btn-text" id="alert-email-remove">Use my Ole Miss email</button>{% endif %}
+      </form>
+    </div>
+    {% if sms_enabled %}
+    <div>
+      <h2 class="t-h2">Text alerts</h2>
+      <p class="small text-muted">Seats go fast. Add your number to get a text along with the email.
+        Standard message rates apply. Reply STOP to any text to opt out.</p>
+      <form class="field-row" id="phone-form" onsubmit="return false">
+        <input class="form-control" id="phone-input" type="tel" inputmode="tel"
+               placeholder="(662) 555-0123" value="{{ phone or '' }}" aria-label="Phone number">
+        <button class="btn btn-quiet" id="phone-save">Save</button>
+        {% if phone %}<button class="btn btn-text" id="phone-remove">Remove</button>{% endif %}
+      </form>
+    </div>
     {% endif %}
   </div>
 </div>

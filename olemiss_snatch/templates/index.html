@@ -2,88 +2,121 @@
 {% block body_class %}landing{% endblock %}
 {% block body %}
 <section class="hero">
-  <div class="container py-5">
-    <div class="row align-items-center g-5 py-lg-4">
-      <div class="col-lg-6">
-        <h1 class="display-4 fw-bold mb-3">Snatch a seat in that full class.</h1>
-        <p class="lead mb-4">
-          Seat alerts for when the official waitlist can't help, plus <strong>Trades</strong>:
-          swap your section with a student who wants yours.
-        </p>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="t-label">For Ole Miss students</p>
+      <h1 class="t-display">Snatch a seat in that full class.</h1>
+      <p class="t-lead measure">
+        Get an alert when a seat opens and the official waitlist can't help. Or trade sections with a
+        student who wants yours.
+      </p>
+
+      <div class="cta">
         {% if google_enabled %}
-          <a href="{{ url_for('login_google') }}" class="btn btn-light btn-lg google-btn px-4">
+          <a href="{{ url_for('login_google') }}" class="btn btn-lg-cta google-btn">
             <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.2C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.6 28.5c-.5-1.4-.8-2.9-.8-4.5s.3-3.1.8-4.5l-7.9-6.2C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg>
-            <span class="ms-2 fw-semibold">Sign in with your Ole Miss Google account</span>
+            Sign in with your Ole Miss Google account
           </a>
-          <div class="form-text text-white-50 mt-2">Use your @{{ domains[0] }} account. No password stored, nothing to remember.</div>
-          <details class="mt-3 email-fallback">
-            <summary class="small text-white-50">Or get a sign-in link by email</summary>
-            <form method="post" action="{{ url_for('login') }}" class="login-form mt-2">
-              <div class="input-group">
-                <input type="email" class="form-control" id="email" name="email" required
-                       placeholder="you@{{ domains[0] }}">
-                <button class="btn btn-snatch px-3">Send link</button>
-              </div>
+          <p class="cta-note">Use your @{{ domains[0] }} account. No password is stored.</p>
+          <details class="email-fallback">
+            <summary>Or get a sign-in link by email</summary>
+            <form method="post" action="{{ url_for('login') }}" class="field-row">
+              <input type="email" class="form-control" id="email" name="email" required
+                     placeholder="you@{{ domains[0] }}" aria-label="Ole Miss email">
+              <button class="btn btn-quiet">Send link</button>
             </form>
           </details>
         {% else %}
-        <form method="post" action="{{ url_for('login') }}" class="login-form">
-          <label for="email" class="form-label fw-semibold">Sign in with your Ole Miss email</label>
-          <div class="input-group input-group-lg">
-            <input type="email" class="form-control" id="email" name="email" required
-                   placeholder="you@{{ domains[0] }}">
-            <button class="btn btn-snatch px-4">Send link</button>
-          </div>
-          <div class="form-text text-white-50 mt-2">No password. We email you a one-time sign-in link.</div>
-        </form>
+          <form method="post" action="{{ url_for('login') }}">
+            <label for="email" class="t-h2 d-block mb-2">Sign in with your Ole Miss email</label>
+            <div class="field-row">
+              <input type="email" class="form-control" id="email" name="email" required
+                     placeholder="you@{{ domains[0] }}">
+              <button class="btn btn-primary-ink">Send link</button>
+            </div>
+            <p class="cta-note">No password. We email you a one-time sign-in link.</p>
+          </form>
         {% endif %}
       </div>
-      <div class="col-lg-6">
-        <div class="card snatch-card preview-card shadow-lg">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div>
-                <div class="fw-bold">MATH 1150</div>
-                <div class="small text-muted">Elementary Statistics</div>
-              </div>
-              <span class="badge rounded-pill text-bg-light">Fall 2026</span>
+    </div>
+
+    <div>
+      {% if showcase %}
+        <div class="preview-caption">
+          <p class="t-label">Live from the class search · {{ term_name(term) }}</p>
+          <p class="small text-muted m-0">Updated {{ updated }}</p>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="t-h2">{{ showcase.subject }} {{ showcase.course_number }}</h2>
+              <p class="cell-sub m-0">{{ showcase.title }}</p>
             </div>
-            <table class="table table-sm align-middle mb-0">
+            <p class="small text-muted m-0">{{ showcase.full_sections }} full</p>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Section</th><th>Time</th><th>Seats</th><th class="end">Watching</th></tr></thead>
               <tbody>
-                <tr><td>007</td><td class="small text-muted">MWF 9:00-9:50am</td>
-                    <td><span class="seat-pill full">0 / 49</span></td>
-                    <td class="text-end"><div class="form-check form-switch m-0 d-inline-block"><input class="form-check-input" type="checkbox" checked disabled></div></td></tr>
-                <tr><td>011</td><td class="small text-muted">TR 11:00am-12:15pm</td>
-                    <td><span class="seat-pill full">0 / 48</span></td>
-                    <td class="text-end"><div class="form-check form-switch m-0 d-inline-block"><input class="form-check-input" type="checkbox" disabled></div></td></tr>
-                <tr><td>013</td><td class="small text-muted">TR 2:00-3:15pm</td>
-                    <td><span class="seat-pill open">2 / 42</span></td>
-                    <td class="text-end small text-success fw-semibold">Open</td></tr>
+                {% for s in sections %}
+                  {% set full = s.seats_available <= 0 %}
+                  <tr>
+                    <td class="cell-main">{{ s.section }}</td>
+                    <td class="text-muted">{{ s.meetings or "TBA" }}</td>
+                    <td>{% if full %}<span class="seat full">0 / {{ s.max_enrollment }}</span>
+                        {% else %}<span class="seat open">{{ s.seats_available }} / {{ s.max_enrollment }}</span>{% endif %}</td>
+                    <td class="end">{{ s.watchers }}</td>
+                  </tr>
+                {% endfor %}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      {% else %}
+        <div class="preview-caption"><p class="t-label">What a course page looks like</p></div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="t-h2">MATH 1150</h2>
+              <p class="cell-sub m-0">Elementary Statistics</p>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Section</th><th>Time</th><th>Seats</th><th class="end">Watching</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-main">007</td><td class="text-muted">MWF 9:00-9:50am</td><td><span class="seat full">0 / 49</span></td><td class="end">12</td></tr>
+              <tr><td class="cell-main">011</td><td class="text-muted">TR 11:00am-12:15pm</td><td><span class="seat full">0 / 48</span></td><td class="end">7</td></tr>
+              <tr><td class="cell-main">013</td><td class="text-muted">TR 2:00-3:15pm</td><td><span class="seat open">2 / 42</span></td><td class="end">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     </div>
   </div>
 </section>
-<section class="container py-5">
-  <div class="row g-4 text-center">
-    <div class="col-md-4">
-      <div class="step-icon"><i class="bi bi-search"></i></div>
-      <h5 class="fw-bold mt-3">See every section at once</h5>
-      <p class="text-muted">Live seats, waitlists, times and instructors. If a section has an open waitlist, we send you to join it.</p>
+
+<section class="how">
+  <div class="wrap how-grid">
+    <div>
+      <h2 class="t-h1">How it works</h2>
+      <p class="text-muted mt-3 measure">Seat counts are checked every few minutes. {{ SITE_NAME }} never logs in to
+        Experience and never registers for you.</p>
     </div>
-    <div class="col-md-4">
-      <div class="step-icon"><i class="bi bi-bell"></i></div>
-      <h5 class="fw-bold mt-3">Alerts when waitlists can't help</h5>
-      <p class="text-muted">Sections without a waitlist, and add/drop week after waitlists close: we email you the CRN the moment a seat opens.</p>
-    </div>
-    <div class="col-md-4">
-      <div class="step-icon"><i class="bi bi-arrow-left-right"></i></div>
-      <h5 class="fw-bold mt-3">Trades</h5>
-      <p class="text-muted">In 007 but want 011? If someone in 011 wants 007, we connect you both so you can swap.</p>
-    </div>
+    <ol class="steps">
+      <li><div>
+        <h3>Find the course</h3>
+        <p>Search by code, title or instructor to see every section's live seats, waitlist, time and instructor.</p>
+      </div></li>
+      <li><div>
+        <h3>Use the waitlist, or get in line</h3>
+        <p>If a section has an open official waitlist, we send you to join it in Experience. If it doesn't, or after
+          waitlists close for add/drop, flip the switch and we'll email you the CRN when a seat opens.</p>
+      </div></li>
+      <li><div>
+        <h3>Or trade</h3>
+        <p>In 007 but want 011? When someone in 011 wants 007, we introduce you both so you can swap.</p>
+      </div></li>
+    </ol>
   </div>
 </section>
 {% endblock %}

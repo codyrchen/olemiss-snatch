@@ -195,3 +195,17 @@ def test_failed_sends_dont_count_toward_rate_limit(app, client):
     app.extensions["mailer"].send = real_send
     r = client.post("/login", data={"email": "cody@go.olemiss.edu"})
     assert b"Check your email" in r.data
+
+
+def test_landing_previews_a_real_course(client, app):
+    db.add_subscription(db.connect(app.config["DB_PATH"]), "x@go.olemiss.edu", "202710", "10001")
+    page = client.get("/").data.decode()
+    assert "Live from the class search" in page and "MATH 1150" in page
+    assert "0 / 40" in page and "5 / 40" in page        # real seat counts
+    assert "Closed" not in page                          # cancelled sections are left out
+
+
+def test_landing_falls_back_without_data(tmp_path):
+    a = create_app(db_path=str(tmp_path / "empty.db"), mailer=FakeMailer())
+    page = a.test_client().get("/").data.decode()
+    assert "What a course page looks like" in page

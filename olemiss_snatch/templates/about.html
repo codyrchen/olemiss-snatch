@@ -1,36 +1,33 @@
 {% extends "base.html" %}
 {% block title %}About · {{ SITE_NAME }}{% endblock %}
 {% block body %}
-<div class="container py-5" style="max-width: 760px">
-  <div class="card snatch-card">
-    <div class="card-body p-4 p-md-5">
-      <h1 class="h3 fw-bold mb-4">About {{ SITE_NAME }}</h1>
+<div class="wrap-narrow page prose">
+  <h1 class="t-h1 mb-4">About {{ SITE_NAME }}</h1>
 
-      <h2 class="h6 fw-bold">Use the official waitlist first</h2>
-      <p>Many Ole Miss sections have an official waitlist in Experience. If a seat opens, the next student on it
-        is emailed and the seat is held for them. If a section has an open waitlist, join it.
-        {{ SITE_NAME }} links you there.</p>
+  <h2>Use the official waitlist first</h2>
+  <p>Many Ole Miss sections have an official waitlist in Experience. If a seat opens, the next student on it
+    is emailed and the seat is held for them. If a section has an open waitlist, join it.
+    {{ SITE_NAME }} links you there.</p>
 
-      <h2 class="h6 fw-bold">Seat alerts, for when the waitlist can't help</h2>
-      <p>For sections with no waitlist, and after waitlists close the week before classes (add/drop),
-        {{ SITE_NAME }} checks seat counts every few minutes and emails you the CRN when a full section opens.
-        Alerts go out in the order people subscribed (three per open seat).</p>
+  <h2>Seat alerts, for when the waitlist can't help</h2>
+  <p>For sections with no waitlist, and after waitlists close the week before classes (add/drop),
+    {{ SITE_NAME }} checks seat counts every few minutes and emails you the CRN when a full section opens.
+    Alerts go out in the order people subscribed, three per open seat.</p>
 
-      <h2 class="h6 fw-bold">Trades</h2>
-      <p>Tell us which section you're in and which ones you'd switch to. When another student is in a section
-        you want <em>and</em> wants yours, we email you both so you can swap: agree on a time, then both drop
-        and add at the same moment. If a section has students on its official waitlist, a dropped seat goes to
-        them first, so swaps work best when that waitlist is empty or closed.</p>
+  <h2>Trades</h2>
+  <p>Tell us which section you're in and which ones you'd switch to. When another student is in a section
+    you want <em>and</em> wants yours, we email you both so you can swap: agree on a time, then both drop
+    and add at the same moment. If a section has students on its official waitlist, a dropped seat goes to
+    them first, so swaps work best when that waitlist is empty or closed.</p>
 
-      <h2 class="h6 fw-bold">Does it register me?</h2>
-      <p>No. {{ SITE_NAME }} never logs in to Experience or Banner and never asks for your password.
-        You register yourself in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a>.</p>
+  <h2>Does it register me?</h2>
+  <p>No. {{ SITE_NAME }} never logs in to Experience or Banner and never asks for your password.
+    You register yourself in <a href="{{ REGISTRATION_URL }}" target="_blank" rel="noopener">Experience</a>.</p>
 
-      <h2 class="h6 fw-bold">What do you store?</h2>
-      <p class="mb-4">Your Ole Miss email, the sections you're watching, and (if you use Trades) the section you're in and the ones you'd trade for. Your email is only shown to a student you've matched with.</p>
+  <h2>What do you store?</h2>
+  <p>Your Ole Miss email, the sections you're watching, and, if you use Trades, the section you're in and the ones
+    you'd trade for. Your email is only shown to a student you've matched with.</p>
 
-      <p class="small text-muted mb-0">Inspired by Princeton's TigerSnatch. Not affiliated with the University of Mississippi.</p>
-    </div>
-  </div>
+  <p class="small text-muted mt-5 mb-0">Inspired by Princeton's TigerSnatch. Not affiliated with the University of Mississippi.</p>
 </div>
 {% endblock %}

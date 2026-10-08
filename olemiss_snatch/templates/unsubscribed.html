@@ -1,21 +1,19 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="container py-5" style="max-width: 560px">
-  <div class="card snatch-card text-center">
-    <div class="card-body p-5">
-      {% set label = (sec.subject ~ " " ~ sec.course_number ~ "-" ~ sec.section) if sec else ("CRN " ~ crn) %}
-      {% if done %}
-        <h2 class="h4 fw-bold">Unsubscribed</h2>
-        <p class="text-muted mb-4">You won't get any more alerts for {{ label }}.</p>
-        <a href="{{ url_for('index') }}" class="btn btn-snatch">Go to {{ SITE_NAME }}</a>
-      {% else %}
-        <h2 class="h4 fw-bold">Stop alerts for {{ label }}?</h2>
-        <p class="text-muted mb-4">{{ sec.title if sec else "" }}</p>
-        <form method="post">
-          <button class="btn btn-snatch">Unsubscribe</button>
-        </form>
-      {% endif %}
-    </div>
+<div class="wrap-narrow page">
+  <div class="panel message">
+    {% set label = (sec.subject ~ " " ~ sec.course_number ~ "-" ~ sec.section) if sec else ("CRN " ~ crn) %}
+    {% if done %}
+      <h1 class="t-h1">Unsubscribed</h1>
+      <p class="text-muted">You won't get any more alerts for {{ label }}.</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary-ink">Go to {{ SITE_NAME }}</a>
+    {% else %}
+      <h1 class="t-h1">Stop alerts for {{ label }}?</h1>
+      {% if sec %}<p class="text-muted">{{ sec.title }}</p>{% endif %}
+      <form method="post">
+        <button class="btn btn-primary-ink">Unsubscribe</button>
+      </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

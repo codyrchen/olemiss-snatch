@@ -1,35 +1,24 @@
 {% extends "base.html" %}
 {% block body_class %}app{% endblock %}
 {% block body %}
-<div class="container-fluid px-3 px-lg-4 py-3">
-  <div class="row g-3">
-    <aside class="col-lg-4 col-xl-3">
-      <div class="card snatch-card search-card">
-        <div class="card-body">
-          <form class="mb-2" onsubmit="return false">
-            <div class="d-flex gap-2 mb-2">
-              <select class="form-select form-select-sm term-select" id="term-select" aria-label="Term">
-                {% for t in terms %}
-                  <option value="{{ t }}" {% if t == term %}selected{% endif %}>{{ term_name(t) }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="input-group">
-              <span class="input-group-text"><i class="bi bi-search"></i></span>
-              <input type="search" class="form-control" id="search-input" autocomplete="off"
-                     placeholder="Search by course code, title, or instructor"
-                     aria-label="Search courses" autofocus>
-            </div>
-          </form>
-          <div id="search-results" class="list-group list-group-flush search-results">
-            <div class="text-muted small p-2">Try <em>MATH 1150</em>, <em>CSCI</em>, or <em>Biology</em>.</div>
-          </div>
-        </div>
-      </div>
-    </aside>
-    <main class="col-lg-8 col-xl-9">
-      {% block main %}{% endblock %}
-    </main>
-  </div>
+<div class="wrap page app-grid">
+  <aside class="search-col">
+    <form onsubmit="return false">
+      <select class="form-select" id="term-select" aria-label="Term">
+        {% for t in terms %}
+          <option value="{{ t }}" {% if t == term %}selected{% endif %}>{{ term_name(t) }}</option>
+        {% endfor %}
+      </select>
+      <input type="search" class="form-control" id="search-input" autocomplete="off"
+             placeholder="Course code, title or instructor"
+             aria-label="Search courses" autofocus>
+    </form>
+    <div id="search-results" class="search-results">
+      <div class="search-hint">Try <em>MATH 1150</em>, <em>CSCI</em> or <em>Biology</em>.</div>
+    </div>
+  </aside>
+  <main>
+    {% block main %}{% endblock %}
+  </main>
 </div>
 {% endblock %}

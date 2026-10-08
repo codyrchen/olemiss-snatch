@@ -35,18 +35,18 @@
   function render(courses, query) {
     results.replaceChildren();
     if (!courses.length) {
-      results.appendChild(el("div", "text-muted small p-2", 'No courses match "' + query + '".'));
+      results.appendChild(el("div", "search-hint", 'No courses match "' + query + '".'));
       return;
     }
     courses.forEach(function (c) {
-      var a = el("a", "list-group-item list-group-item-action");
+      var a = el("a", "result");
       a.href = c.url;
       if (window.location.pathname === c.url) a.classList.add("active");
-      var top = el("div", "d-flex justify-content-between align-items-baseline gap-2");
+      var top = el("div", "result-top");
       top.appendChild(el("span", "result-code", c.subject + " " + c.number));
       if (c.full > 0) top.appendChild(el("span", "full-count", c.full + " full"));
       a.appendChild(top);
-      a.appendChild(el("div", "small text-muted text-truncate", c.title));
+      a.appendChild(el("div", "result-title", c.title));
       results.appendChild(a);
     });
   }

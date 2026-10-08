@@ -1,61 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Stats · {{ SITE_NAME }}{% endblock %}
 {% block body %}
-<div class="container py-4" style="max-width: 980px">
-  <h1 class="h3 fw-bold mb-1">Stats</h1>
-  <p class="text-muted small mb-4">{{ alert_status }}</p>
+<div class="wrap page">
+  <h1 class="t-h1">Stats</h1>
+  <p class="small text-muted mt-2 mb-5">{{ alert_status }}</p>
 
-  <div class="row g-3 mb-4">
+  <div class="totals">
     {% for label, value in [("Students signed up", stats.users),
                             ("Sections being watched", stats.sections_watched),
                             ("Seat alerts sent", stats.alerts_sent),
                             ("Trade matches made", stats.trade_matches)] %}
-      <div class="col-6 col-md-3">
-        <div class="card snatch-card h-100"><div class="card-body">
-          <div class="stat-value">{{ "{:,}".format(value) }}</div>
-          <div class="small text-muted">{{ label }}</div>
-        </div></div>
+      <div>
+        <div class="total-value">{{ "{:,}".format(value) }}</div>
+        <div class="total-label">{{ label }}</div>
       </div>
     {% endfor %}
   </div>
 
-  <div class="row g-3">
-    <div class="col-lg-7">
-      <div class="card snatch-card h-100"><div class="card-body">
-        <h2 class="h6 fw-bold mb-3">Most-watched sections</h2>
+  <div class="panel mt-5">
+    <div class="two-col">
+      <div>
+        <h2 class="t-h2 mb-3">Most-watched sections</h2>
         {% if stats.top_sections %}
-          <table class="table table-sm align-middle snatch-table mb-0">
-            <thead><tr><th>Section</th><th class="d-none d-sm-table-cell">Title</th><th class="text-end">Watching</th></tr></thead>
+          <table class="data-table">
+            <thead><tr><th>Section</th><th class="d-none d-sm-table-cell">Title</th><th class="end">Watching</th></tr></thead>
             <tbody>
               {% for s in stats.top_sections %}
                 <tr>
-                  <td><a class="course-link fw-semibold" href="{{ url_for('course', term=s.term, subject=s.subject, course_number=s.course_number) }}">
+                  <td><a class="course-link" href="{{ url_for('course', term=s.term, subject=s.subject, course_number=s.course_number) }}">
                     {{ s.subject }} {{ s.course_number }}-{{ s.section }}</a></td>
-                  <td class="small text-muted d-none d-sm-table-cell text-truncate" style="max-width: 16rem">{{ s.title }}</td>
-                  <td class="text-end fw-semibold">{{ s.watchers }}</td>
+                  <td class="text-muted d-none d-sm-table-cell"><div class="truncate">{{ s.title }}</div></td>
+                  <td class="end fw-semibold">{{ s.watchers }}</td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
         {% else %}
-          <p class="small text-muted mb-0">Nobody is watching a section yet.</p>
+          <p class="small text-muted m-0">Nobody is watching a section yet.</p>
         {% endif %}
-      </div></div>
-    </div>
-    <div class="col-lg-5">
-      <div class="card snatch-card h-100"><div class="card-body">
-        <h2 class="h6 fw-bold mb-3">Recently opened seats</h2>
+      </div>
+      <div>
+        <h2 class="t-h2 mb-3">Recently opened seats</h2>
         {% if stats.recent_openings %}
-          <ul class="list-unstyled small mb-0">
+          <ul class="plain-list">
             {% for o in stats.recent_openings %}
-              <li class="mb-2"><strong>{{ o.subject }} {{ o.course_number }}-{{ o.section }}</strong>
+              <li><strong>{{ o.subject }} {{ o.course_number }}-{{ o.section }}</strong>
                 <span class="text-muted">· {{ [o.seats_before, 0]|max }} → {{ o.seats_after }} seats · {{ o.detected_at[:16].replace("T", " ") }} UTC</span></li>
             {% endfor %}
           </ul>
         {% else %}
-          <p class="small text-muted mb-0">No seat openings detected yet.</p>
+          <p class="small text-muted m-0">No seat openings detected yet.</p>
         {% endif %}
-      </div></div>
+      </div>
     </div>
   </div>
 </div>

@@ -156,8 +156,18 @@ def create_app(db_path: str | None = None, mailer: Mailer | None = None) -> Flas
     def index():
         if "email" in session:
             return redirect(url_for("dashboard"))
+        # Preview a real course from the latest seat data rather than a mock-up.
+        conn = get_db()
+        term = db.busiest_term(conn)
+        showcase = db.showcase_course(conn, term) if term else None
+        sections = []
+        if showcase:
+            sections = db.course_sections(conn, term, showcase["subject"], showcase["course_number"])
+            sections = [s for s in sections if s["max_enrollment"] > 0][:5]
         return render_template("index.html", domains=allowed_domains(),
-                               google_enabled=google_auth.configured())
+                               google_enabled=google_auth.configured(),
+                               term=term, showcase=showcase, sections=sections,
+                               updated=time_ago(db.last_updated(conn, term)) if term else None)
 
     @app.post("/login")
     def login():
