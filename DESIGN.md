@@ -16,7 +16,7 @@ Rules for any UI change. If a change breaks a rule here, change the change, not 
 | Text | `--ink` | `#171717` | Body text |
 | Muted text | `--muted` | `#6B6B6B` | Secondary text: times, CRNs, captions |
 | Subtle fill | `--fill` | `#F2F2F2` | Hovered rows, the closed-section label, the "you" row in Trades |
-| Pop | `--sky` | `#8BB8E8` | Ole Miss powder blue (Pantone 278), the one bright touch, like TigerSnatch's yellow. Only for the nav's bottom border, the status chip, the Log out pill and the name highlight in "Welcome, name" |
+| Pop | `--sky` | `#8BB8E8` | Ole Miss powder blue (Pantone 278), the one bright touch. Only for the nav's bottom border, the status chip, the Log out pill and the name highlight in "Welcome, name" |
 | Nav tint | `--sky-tint` | `#D9E7F7` | The nav bar background, nothing else |
 | Soft tint | `--powder` | `#E7EEF8` | The search sidebar, nothing else |
 

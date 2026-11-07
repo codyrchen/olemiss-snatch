@@ -67,7 +67,7 @@
       clearTimeout(timer);
       timer = setTimeout(search, 200);
     });
-    // Keep the last search when moving between pages, like TigerSnatch.
+    // Keep the last search when moving between pages.
     try {
       var saved = sessionStorage.getItem("snatch-q");
       if (saved) { input.value = saved; search(); }
