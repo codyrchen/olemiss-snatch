@@ -145,7 +145,3 @@ The UI follows [`DESIGN.md`](DESIGN.md). The colors are navy, with red reserved 
 ```bash
 python -m pytest -q
 ```
-
----
-
-RebelSnatch is a student project and isn't affiliated with the University of Mississippi.
